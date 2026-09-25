@@ -1,7 +1,7 @@
 USE [VehicleParkingManagementDB];
 GO
 
-CREATE OR ALTER PROCEDURE dbo.PARKING_SP_User
+CREATE PROCEDURE dbo.PARKING_SP_User
 (
     @ActionType         INT,
 
@@ -214,8 +214,6 @@ BEGIN
 
     /* ============================================================
        ACTION 3: LIST USERS
-
-       PasswordHash is intentionally excluded.
        ============================================================ */
     IF @ActionType = 3
     BEGIN

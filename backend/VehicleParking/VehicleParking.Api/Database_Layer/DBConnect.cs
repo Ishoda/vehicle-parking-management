@@ -1,6 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 
-namespace VehicleParking.Api.Data
+namespace VehicleParking.Data
 
 {
     public class DBConnect

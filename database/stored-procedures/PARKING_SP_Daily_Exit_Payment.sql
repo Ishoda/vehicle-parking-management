@@ -1,15 +1,6 @@
 USE [VehicleParkingManagementDB];
 GO
 
-/* Charges current active rates at the instant of exit. A daily ticket must
-   already exist with TicketStatus=OPEN, RateID and AppliedRate set at entry.
-   The final calculation uses BOTH hourly and daily rates; RateID/AppliedRate
-   on the current ticket schema cannot preserve both components historically.
-   PaymentAmount and CalculatedAmount preserve the final charged total.
-
-   This operation is atomic: completed payment, closed ticket, and released
-   space commit together. The API must authorize its caller and supply the
-   authenticated operator's UserID, never a user-selected ID. */
 CREATE OR ALTER PROCEDURE dbo.PARKING_SP_Daily_Exit_Payment
     @TicketID INT,
     @PaymentMethod VARCHAR(20),
@@ -106,13 +97,13 @@ BEGIN
             RETURN;
         END;
 
-        /* Full 24-hour blocks cost daily rate. Exact remainder of 6 hours is
-           hourly; a remainder greater than 6 hours costs one daily rate. */
+        /* Full 24-hour blocks cost the daily rate. A remainder under 6 hours
+			uses the hourly rate; 6 hours or more uses the daily rate. */
         DECLARE @FullDays BIGINT = @Seconds / 86400;
         DECLARE @RemainingSeconds BIGINT = @Seconds % 86400;
         DECLARE @Charge DECIMAL(38,6) =
             CONVERT(DECIMAL(38,6), @FullDays) * @DailyRate +
-            CASE WHEN @RemainingSeconds <= 21600
+            CASE WHEN @RemainingSeconds < 21600
                  THEN CONVERT(DECIMAL(38,6), @RemainingSeconds)
                       * @HourlyRate / CONVERT(DECIMAL(38,6), 3600)
                  ELSE CONVERT(DECIMAL(38,6), @DailyRate) END;

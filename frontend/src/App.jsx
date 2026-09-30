@@ -1,122 +1,80 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import LoginPage from './pages/LoginPage'
+import {
+  restoreSession,
+  signOut,
+} from './store/slices/authSlice'
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const dispatch = useDispatch()
+
+  const {
+    user,
+    loading,
+    error,
+    initialized,
+    sessionError,
+  } = useSelector((state) => state.auth)
+
+  useEffect(() => {
+    dispatch(restoreSession())
+  }, [dispatch])
+
+  if (!initialized) {
+    return (
+      <main className="auth-page">
+        <h1>Vehicle Parking Management</h1>
+
+        {sessionError ? (
+          <>
+            <p role="alert">{error}</p>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => dispatch(restoreSession())}
+            >
+              Try again
+            </button>
+          </>
+        ) : (
+          <p role="status">Checking your session…</p>
+        )}
+      </main>
+    )
+  }
+
+  if (!user) {
+    return <LoginPage />
+  }
+
+  const roleName = {
+    A: 'Admin',
+    O: 'Operator',
+  }[user.role] || 'Unknown'
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <main className="auth-page">
+      <h1>Vehicle Parking Management</h1>
 
-      <div className="ticks"></div>
+      <p className="auth-description">
+        Welcome, {user.firstName} {user.lastName}.
+      </p>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      <p>Username: {user.username}</p>
+      <p>Role: {roleName}</p>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      {error && <p role="alert">{error}</p>}
+
+      <button
+        className="logout-button"
+        type="button"
+        disabled={loading}
+        onClick={() => dispatch(signOut())}
+      >
+        {loading ? 'Logging out…' : 'Log out'}
+      </button>
+    </main>
   )
 }
-
-export default App

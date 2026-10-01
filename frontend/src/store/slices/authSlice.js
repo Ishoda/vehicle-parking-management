@@ -72,7 +72,15 @@ const initialState = {
 const authSlice = createSlice({
   name: 'auth',
   initialState,
-  reducers: {},
+  reducers: {
+    sessionExpired: (state) => {
+    state.user = null
+    state.loading = false
+    state.initialized = true
+    state.sessionError = false
+    state.error = 'Your session has expired. Please log in again.'
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(restoreSession.fulfilled, (state, action) => {
@@ -126,3 +134,4 @@ const authSlice = createSlice({
 })
 
 export default authSlice.reducer
+export const { sessionExpired } = authSlice.actions

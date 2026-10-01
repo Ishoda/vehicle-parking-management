@@ -1,0 +1,106 @@
+.user-management {
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 24px;
+  border: 1px solid #dce2eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.user-management h1 {
+  margin-top: 0;
+}
+
+.user-management section {
+  margin-top: 28px;
+}
+
+.user-management fieldset {
+  display: grid;
+  gap: 10px;
+  max-width: 480px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.user-management label {
+  font-weight: 600;
+}
+
+.user-management input,
+.user-management select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #aab5c5;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.user-management button {
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: #2458a6;
+  color: #fff;
+  cursor: pointer;
+}
+
+.user-management button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.user-actions,
+.user-list-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-list-heading {
+  justify-content: space-between;
+}
+
+.user-table-container {
+  overflow-x: auto;
+}
+
+.user-management table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.user-management th,
+.user-management td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #dce2eb;
+}
+
+.user-management [role="alert"] {
+  color: #b42318;
+}
+
+.user-management [role="status"] {
+  color: #176b39;
+}
+
+.user-management a {
+  color: #2458a6;
+}
+
+.user-management input:focus-visible,
+.user-management select:focus-visible,
+.user-management button:focus-visible,
+.user-management a:focus-visible {
+  outline: 3px solid #8eb7f5;
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .user-management {
+    padding: 16px;
+  }
+}

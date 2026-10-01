@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Link } from 'react-router-dom'
+import {
+  Users, ShieldCheck, UserCheck, UserX, UserPlus, Pencil, RefreshCw, Save, X,
+} from 'lucide-react'
+import DashboardLayout from '../components/DashboardLayout'
 import * as userService from '../services/UserService'
 import { sessionExpired } from '../store/slices/authSlice'
 import '../styles/UserManagement.css'
@@ -105,7 +108,7 @@ export default function UserManagementPage() {
   }
 
   function editUser(user) {
-    setEditingId(user.userId)
+    setEditingId(Number(user.userId))
     setForm({
       firstName: user.firstName,
       lastName: user.lastName,
@@ -193,165 +196,352 @@ export default function UserManagementPage() {
   }
 
   return (
-    <main className="user-management">
-      <header>
-        <h1>Manage users</h1>
-        <Link to="/">Back to dashboard</Link>
-      </header>
+    <DashboardLayout>
+      <main className="dashboard-main user-management">
+        <header className="users-page-header">
+          <div>
+            <p className="dashboard-eyebrow">
+              Workspace / User management
+            </p>
+            <h1>Manage users</h1>
+            <p className="users-description">
+              Manage staff accounts, roles, and access to your workspace.
+            </p>
+          </div>
 
-      {error && <p role="alert">{error}</p>}
-      {success && <p role="status">{success}</p>}
+          <span className="users-admin-badge">
+            <ShieldCheck size={16} aria-hidden="true" />
+            Admin workspace
+          </span>
+        </header>
 
-      <section aria-labelledby="user-form-title">
-        <h2 id="user-form-title">
-          {editingId === null ? 'Create staff account' : 'Edit staff account'}
-        </h2>
+        {error && (
+          <p className="users-feedback users-error" role="alert">
+            {error}
+          </p>
+        )}
 
-        <form onSubmit={saveUser}>
-          <fieldset disabled={busy}>
-            <label htmlFor="firstName">First name</label>
-            <input
-              id="firstName"
-              name="firstName"
-              value={form.firstName}
-              onChange={changeField}
-              maxLength={100}
-              required
-            />
+        {success && (
+          <p className="users-feedback users-success" role="status">
+            {success}
+          </p>
+        )}
 
-            <label htmlFor="lastName">Last name</label>
-            <input
-              id="lastName"
-              name="lastName"
-              value={form.lastName}
-              onChange={changeField}
-              maxLength={100}
-              required
-            />
+        <section className="users-summary" aria-label="Staff account summary">
+          {[
+            {
+              id: 'total',
+              label: 'Total accounts',
+              value: users.length,
+              description: 'Accounts in the current list',
+              Icon: Users,
+            },
+            {
+              id: 'active',
+              label: 'Active',
+              value: users.filter((user) => user.activeStatus).length,
+              description: 'Enabled staff accounts',
+              Icon: UserCheck,
+            },
+            {
+              id: 'admin',
+              label: 'Administrators',
+              value: users.filter((user) => user.userRole === 'A').length,
+              description: 'Accounts with Admin role',
+              Icon: ShieldCheck,
+            },
+            {
+              id: 'inactive',
+              label: 'Inactive',
+              value: users.filter((user) => !user.activeStatus).length,
+              description: 'Disabled staff accounts',
+              Icon: UserX,
+            },
+          ].map(({ id, label, value, description, Icon }) => (
+            <div key={id} className={`users-stat users-stat-${id}`}>
+              <div className="users-stat-top">
+                <span>{label}</span>
+                <span className="users-stat-icon">
+                  <Icon size={23} aria-hidden="true" />
+                </span>
+              </div>
 
-            <label htmlFor="staffUsername">Username</label>
-            <input
-              id="staffUsername"
-              name="username"
-              value={form.username}
-              onChange={changeField}
-              autoComplete="off"
-              maxLength={100}
-              required
-            />
+              <strong>{loading ? '—' : value}</strong>
+              <p>{description}</p>
+            </div>
+          ))}
+        </section>
 
-            <label htmlFor="userRole">Role</label>
-            <select
-              id="userRole"
-              name="userRole"
-              value={form.userRole}
-              onChange={changeField}
-              disabled={editingSelf}
-            >
-              <option value="O">Operator</option>
-              <option value="A">Admin</option>
-            </select>
+        <section className="users-panel" aria-labelledby="user-form-title">
+          <div className="users-panel-heading">
+            <span className="users-panel-icon">
+              {editingId === null ? (
+                <UserPlus size={22} aria-hidden="true" />
+              ) : (
+                <Pencil size={22} aria-hidden="true" />
+              )}
+            </span>
 
-            {editingSelf && <p>You cannot change your own Admin role.</p>}
+            <div>
+              <h2 id="user-form-title">
+                {editingId === null
+                  ? 'Create staff account'
+                  : 'Edit staff account'}
+              </h2>
+              <p>
+                {editingId === null
+                  ? 'Enter staff details and assign an account role.'
+                  : 'Update the selected staff member’s details.'}
+              </p>
+            </div>
+          </div>
 
-            {editingId === null && (
-              <>
-                <label htmlFor="staffPassword">Initial password</label>
+          <form onSubmit={saveUser}>
+            <fieldset disabled={busy} className="users-form-grid">
+              <legend className="users-sr-only">Staff account details</legend>
+
+              <div className="users-field">
+                <label htmlFor="firstName">First name</label>
                 <input
-                  id="staffPassword"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={form.password}
+                  id="firstName"
+                  name="firstName"
+                  value={form.firstName}
                   onChange={changeField}
-                  minLength={12}
+                  maxLength={100}
                   required
                 />
-                <p>At least 12 characters; maximum 72 UTF-8 bytes.</p>
-              </>
-            )}
+              </div>
 
-            <div className="user-actions">
-              <button type="submit">
-                {saving ? 'Saving…' : editingId === null
-                  ? 'Create user'
-                  : 'Save changes'}
-              </button>
+              <div className="users-field">
+                <label htmlFor="lastName">Last name</label>
+                <input
+                  id="lastName"
+                  name="lastName"
+                  value={form.lastName}
+                  onChange={changeField}
+                  maxLength={100}
+                  required
+                />
+              </div>
 
-              {editingId !== null && (
-                <button type="button" onClick={resetForm}>
-                  Cancel edit
+              <div className="users-field">
+                <label htmlFor="staffUsername">Username</label>
+                <input
+                  id="staffUsername"
+                  name="username"
+                  value={form.username}
+                  onChange={changeField}
+                  autoComplete="off"
+                  maxLength={100}
+                  required
+                />
+              </div>
+
+              <div className="users-field">
+                <label htmlFor="userRole">Role</label>
+                <select
+                  id="userRole"
+                  name="userRole"
+                  value={form.userRole}
+                  onChange={changeField}
+                  disabled={editingSelf}
+                  aria-describedby={editingSelf ? 'self-role-help' : undefined}
+                >
+                  <option value="O">Operator</option>
+                  <option value="A">Admin</option>
+                </select>
+
+                {editingSelf && (
+                  <p id="self-role-help" className="users-field-help">
+                    You cannot change your own Admin role.
+                  </p>
+                )}
+              </div>
+
+              {editingId === null && (
+                <div className="users-field users-field-wide">
+                  <label htmlFor="staffPassword">Initial password</label>
+                  <input
+                    id="staffPassword"
+                    name="password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={form.password}
+                    onChange={changeField}
+                    minLength={12}
+                    aria-describedby="staff-password-help"
+                    required
+                  />
+                  <p id="staff-password-help" className="users-field-help">
+                    At least 12 characters; maximum 72 UTF-8 bytes.
+                  </p>
+                </div>
+              )}
+
+              <div className="user-actions users-form-actions">
+                <button type="submit" className="users-button-primary">
+                  {editingId === null ? (
+                    <UserPlus size={17} aria-hidden="true" />
+                  ) : (
+                    <Save size={17} aria-hidden="true" />
+                  )}
+                  {saving
+                    ? 'Saving…'
+                    : editingId === null
+                      ? 'Create user'
+                      : 'Save changes'}
                 </button>
-              )}
+
+                {editingId !== null && (
+                  <button
+                    type="button"
+                    className="users-button-secondary"
+                    onClick={resetForm}
+                  >
+                    <X size={17} aria-hidden="true" />
+                    Cancel edit
+                  </button>
+                )}
+              </div>
+            </fieldset>
+          </form>
+        </section>
+
+        <section
+          className="users-panel users-list-panel"
+          aria-labelledby="staff-list-title"
+        >
+          <div className="user-list-heading">
+            <div>
+              <h2 id="staff-list-title">Staff accounts</h2>
+              <p>Review account details and manage staff access.</p>
             </div>
-          </fieldset>
-        </form>
-      </section>
 
-      <section aria-labelledby="staff-list-title">
-        <div className="user-list-heading">
-          <h2 id="staff-list-title">Staff accounts</h2>
-          <button type="button" onClick={reloadUsers} disabled={busy}>
-            Refresh list
-          </button>
-        </div>
+            <button
+              type="button"
+              className="users-button-secondary"
+              onClick={reloadUsers}
+              disabled={busy}
+            >
+              <RefreshCw size={16} aria-hidden="true" />
+              {loading ? 'Refreshing…' : 'Refresh list'}
+            </button>
+          </div>
 
-        {loading && <p role="status">Loading users…</p>}
+          {loading && (
+            <p className="users-loading" role="status">
+              Loading users…
+            </p>
+          )}
 
-        <div className="user-table-container">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Username</th>
-                <th scope="col">Role</th>
-                <th scope="col">Status</th>
-                <th scope="col">Actions</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.userId}>
-                  <td>{user.firstName} {user.lastName}</td>
-                  <td>{user.username}</td>
-                  <td>{user.userRole === 'A' ? 'Admin' : 'Operator'}</td>
-                  <td>{user.activeStatus ? 'Active' : 'Inactive'}</td>
-                  <td>
-                    <div className="user-actions">
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => editUser(user)}
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={
-                          busy ||
-                          !user.activeStatus ||
-                          user.userId === currentUserId
-                        }
-                        onClick={() => deactivate(user)}
-                      >
-                        Deactivate
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-
-              {!loading && users.length === 0 && (
+          <div
+            className="user-table-container"
+            role="region"
+            aria-label="Staff accounts table"
+            tabIndex={0}
+          >
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={5}>No staff accounts to display.</td>
+                  <th scope="col">Name</th>
+                  <th scope="col">Username</th>
+                  <th scope="col">Role</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+              </thead>
+
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.userId}>
+                    <td>
+                      <div className="users-name">
+                        <span className="users-avatar" aria-hidden="true">
+                          {`${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase()}
+                        </span>
+                        <div>
+                          <strong>
+                            {user.firstName} {user.lastName}
+                          </strong>
+                          {Number(user.userId) === currentUserId && (
+                            <small>Your account</small>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+
+                    <td>{user.username}</td>
+
+                    <td>
+                      <span
+                        className={`users-role ${
+                          user.userRole === 'A'
+                            ? 'users-role-admin'
+                            : 'users-role-operator'
+                        }`}
+                      >
+                        {user.userRole === 'A' ? 'Admin' : 'Operator'}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span
+                        className={`users-status ${
+                          user.activeStatus
+                            ? 'users-status-active'
+                            : 'users-status-inactive'
+                        }`}
+                      >
+                        {user.activeStatus ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+
+                    <td>
+                      <div className="user-actions">
+                        <button
+                          type="button"
+                          className="users-button-edit"
+                          disabled={busy}
+                          onClick={() => editUser(user)}
+                          aria-label={`Edit ${user.username}`}
+                        >
+                          <Pencil size={15} aria-hidden="true" />
+                          Edit
+                        </button>
+
+                        <button
+                          type="button"
+                          className="users-button-danger"
+                          disabled={
+                            busy ||
+                            !user.activeStatus ||
+                            Number(user.userId) === currentUserId
+                          }
+                          onClick={() => deactivate(user)}
+                          aria-label={`Deactivate ${user.username}`}
+                        >
+                          <UserX size={15} aria-hidden="true" />
+                          Deactivate
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {!loading && users.length === 0 && (
+                  <tr>
+                    <td colSpan={5}>No staff accounts to display.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer className="dashboard-footer">
+          Vehicle Parking Management · Staff workspace
+        </footer>
+      </main>
+    </DashboardLayout>
   )
 }

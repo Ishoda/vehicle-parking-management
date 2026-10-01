@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { signIn } from '../store/slices/authSlice'
+import '../styles/LoginPage.css'
 
 export default function LoginPage() {
   const dispatch = useDispatch()
@@ -8,6 +9,7 @@ export default function LoginPage() {
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   function handleSubmit(event) {
     event.preventDefault()
@@ -20,44 +22,82 @@ export default function LoginPage() {
     }))
 
     setPassword('')
+    setShowPassword(false)
   }
 
   return (
     <main className="auth-page">
-      <h1>Vehicle Parking Management</h1>
-      <p className="auth-description">Sign in to your staff account.</p>
+      <section className="login-card" aria-labelledby="login-title">
+        <h1 id="login-title">Parkly</h1>
+        
 
-      <form onSubmit={handleSubmit}>
-        <label htmlFor="username">Username</label>
-        <input
-          id="username"
-          name="username"
-          autoComplete="username"
-          maxLength={100}
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-          disabled={loading}
-          required
-        />
+        <p className="auth-description">
+          Sign in to your staff account.
+        </p>
 
-        <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          disabled={loading}
-          required
-        />
+        <form onSubmit={handleSubmit}>
+          <label htmlFor="username">Username</label>
+          <input
+            id="username"
+            name="username"
+            type="text"
+            autoComplete="username"
+            maxLength={100}
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            disabled={loading}
+            required
+          />
 
-        {error && <p role="alert">{error}</p>}
+          <label htmlFor="password">Password</label>
 
-        <button type="submit" disabled={loading}>
-          {loading ? 'Signing in…' : 'Log in'}
-        </button>
-      </form>
+          <div className="password-field">
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              disabled={loading}
+              required
+            />
+
+            <button
+              type="button"
+              className="password-toggle"
+              onClick={() => setShowPassword((current) => !current)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-controls="password"
+              disabled={loading}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+                <circle cx="12" cy="12" r="3" />
+                {showPassword && <path d="M3 3 21 21" />}
+              </svg>
+            </button>
+          </div>
+
+          {error && (
+            <p className="login-error" role="alert">
+              {error}
+            </p>
+          )}
+
+          <button type="submit" disabled={loading}>
+            {loading ? 'Signing in…' : 'Log in'}
+          </button>
+        </form>
+      </section>
     </main>
   )
 }

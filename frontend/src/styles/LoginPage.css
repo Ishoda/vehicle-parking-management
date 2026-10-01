@@ -1,0 +1,265 @@
+/* Page reset */
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+#root {
+  width: 100%;
+  max-width: none;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* Full-screen background */
+main.auth-page {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  margin: 0;
+  padding: 24px;
+  overflow-y: auto;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  background-color: #111;
+  background-image:
+    linear-gradient(
+      rgba(0, 0, 0, 0.45),
+      rgba(0, 0, 0, 0.7)
+    ),
+    url('/images/parking-background.jpg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+
+  font-family: 'Segoe UI', sans-serif;
+  color: #fff;
+}
+
+.auth-page,
+.auth-page *,
+.auth-page *::before,
+.auth-page *::after {
+  box-sizing: border-box;
+}
+
+/* Glass login card */
+main.auth-page .login-card {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 440px;
+  margin: auto;
+  padding: 40px 32px;
+
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 24px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+/* Heading and description */
+main.auth-page h1 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(26px, 5vw, 32px);
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+}
+
+main.auth-page .auth-description {
+  margin: 12px 0 30px;
+  color: #ddd;
+  font-size: 15px;
+  text-align: center;
+}
+
+/* Form */
+main.auth-page form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+main.auth-page label {
+  color: #eee;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Inputs */
+main.auth-page input {
+  width: 100%;
+  min-height: 50px;
+  margin-bottom: 12px;
+  padding: 13px 15px;
+
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  caret-color: #fff;
+
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    box-shadow 0.2s;
+}
+
+main.auth-page input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.16);
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+}
+
+main.auth-page input:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Autofill */
+main.auth-page input:-webkit-autofill,
+main.auth-page input:-webkit-autofill:hover,
+main.auth-page input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #fff;
+  -webkit-box-shadow: 0 0 0 1000px #333 inset;
+  caret-color: #fff;
+}
+
+/* Password field */
+main.auth-page .password-field {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+main.auth-page .password-field input {
+  margin-bottom: 0;
+  padding-right: 58px;
+}
+
+/* Show/hide password icon */
+main.auth-page .password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 40px;
+  min-width: 0;
+  height: 40px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  box-shadow: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+main.auth-page .password-toggle:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+main.auth-page .password-toggle svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Keyboard focus */
+main.auth-page button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+main.auth-page button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Error message */
+main.auth-page .login-error {
+  margin: 0 0 8px;
+  padding: 12px;
+
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 10px;
+
+  color: #fff;
+  font-size: 14px;
+}
+
+/* Black login button */
+main.auth-page button[type='submit'] {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 6px;
+  padding: 13px 18px;
+
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  box-shadow: none;
+
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+
+  transition: background 0.2s;
+}
+
+main.auth-page button[type='submit']:hover:not(:disabled) {
+  background: #222;
+}
+
+/* Mobile layout */
+@media (max-width: 480px) {
+  main.auth-page {
+    padding: 16px;
+  }
+
+  main.auth-page .login-card {
+    padding: 32px 22px;
+    border-radius: 20px;
+  }
+}

@@ -10,6 +10,7 @@ import AccessCheckPage from './pages/AccessCheckPage'
 import ForbiddenPage from './pages/ForbiddenPage'
 import UserManagementPage from './pages/UserManagementPage'
 import './App.css'
+import VehicleTypePage from "./pages/VehicleTypePage";
 
 export default function App() {
   const dispatch = useDispatch()
@@ -85,6 +86,11 @@ export default function App() {
           }
         />
       </Route>
+
+      <Route
+        path="/vehicle-types"
+        element={<VehicleTypePage />}
+      />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

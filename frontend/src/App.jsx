@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import AccessCheckPage from './pages/AccessCheckPage'
 import ForbiddenPage from './pages/ForbiddenPage'
+import UserManagementPage from './pages/UserManagementPage'
 import './App.css'
 
 export default function App() {
@@ -72,6 +73,7 @@ export default function App() {
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={ADMIN_ROLES} />}>
+        <Route path="/users" element={<UserManagementPage />} />
         <Route
           path="/access/admin"
           element={

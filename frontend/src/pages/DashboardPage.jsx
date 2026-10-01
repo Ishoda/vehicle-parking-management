@@ -40,6 +40,7 @@ export default function DashboardPage() {
 
       <nav className="permission-links" aria-label="Permission checks">
         <RoleGate allowedRoles={ADMIN_ROLES}>
+          <Link to="/users">Manage users</Link>
           <Link to="/access/admin">Check administrator access</Link>
         </RoleGate>
 

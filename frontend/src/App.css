@@ -78,3 +78,30 @@
     padding: 20px;
   }
 }
+.auth-page h2 {
+  margin-top: 24px;
+  font-size: 1.1rem;
+}
+
+.auth-page ul {
+  padding-left: 22px;
+}
+
+.auth-page li {
+  margin-bottom: 6px;
+}
+
+.permission-links {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.auth-page a {
+  color: #2458a6;
+}
+
+.auth-page a:focus-visible {
+  outline: 3px solid #8eb7f5;
+  outline-offset: 3px;
+}

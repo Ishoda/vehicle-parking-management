@@ -1,10 +1,13 @@
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { restoreSession } from './store/slices/authSlice'
+import { ADMIN_ROLES, OPERATION_ROLES } from './constants/Permissions'
+import ProtectedRoute from './routes/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
-import {
-  restoreSession,
-  signOut,
-} from './store/slices/authSlice'
+import DashboardPage from './pages/DashboardPage'
+import AccessCheckPage from './pages/AccessCheckPage'
+import ForbiddenPage from './pages/ForbiddenPage'
 import './App.css'
 
 export default function App() {
@@ -45,36 +48,43 @@ export default function App() {
     )
   }
 
-  if (!user) {
-    return <LoginPage />
-  }
-
-  const roleName = {
-    A: 'Admin',
-    O: 'Operator',
-  }[user.role] || 'Unknown'
-
   return (
-    <main className="auth-page">
-      <h1>Vehicle Parking Management</h1>
+    <Routes>
+      <Route
+        path="/login"
+        element={user ? <Navigate to="/" replace /> : <LoginPage />}
+      />
 
-      <p className="auth-description">
-        Welcome, {user.firstName} {user.lastName}.
-      </p>
+      <Route element={<ProtectedRoute allowedRoles={OPERATION_ROLES} />}>
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/forbidden" element={<ForbiddenPage />} />
 
-      <p>Username: {user.username}</p>
-      <p>Role: {roleName}</p>
+        <Route
+          path="/access/operations"
+          element={
+            <AccessCheckPage
+              key="operations"
+              title="Parking operations access"
+              endpoint="/Permissions/Operations"
+            />
+          }
+        />
+      </Route>
 
-      {error && <p role="alert">{error}</p>}
+      <Route element={<ProtectedRoute allowedRoles={ADMIN_ROLES} />}>
+        <Route
+          path="/access/admin"
+          element={
+            <AccessCheckPage
+              key="admin"
+              title="Administrator access"
+              endpoint="/Permissions/Admin"
+            />
+          }
+        />
+      </Route>
 
-      <button
-        className="logout-button"
-        type="button"
-        disabled={loading}
-        onClick={() => dispatch(signOut())}
-      >
-        {loading ? 'Logging out…' : 'Log out'}
-      </button>
-    </main>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }

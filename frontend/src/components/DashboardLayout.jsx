@@ -44,7 +44,7 @@ export default function DashboardLayout({ children }) {
           </span>
 
           <span>
-            <strong>Parking Management</strong>
+            <strong>Parkly</strong>
             <small>Staff workspace</small>
           </span>
         </Link>
@@ -62,6 +62,10 @@ export default function DashboardLayout({ children }) {
               <NavLink to="/space-availability" className={navClass}>
                 <span aria-hidden="true">P</span>
                 Space availability
+              </NavLink>
+              <NavLink to="/vehicle-entry" className={navClass}>
+                <span aria-hidden="true">E</span>
+                Vehicle entry
               </NavLink>
             </RoleGate>
 

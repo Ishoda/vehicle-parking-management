@@ -1,0 +1,86 @@
+.entry-page {
+  flex: 1;
+  min-width: 0;
+  padding: 2rem;
+  color: #172033;
+}
+
+.entry-page h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.8rem;
+}
+
+.entry-form {
+  max-width: 640px;
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: #fff;
+  border: 1px solid #dce2eb;
+  border-radius: 12px;
+}
+
+.entry-form fieldset {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.entry-form label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.entry-form input,
+.entry-form select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.7rem;
+  border: 1px solid #bcc6d5;
+  border-radius: 6px;
+  background: #fff;
+  color: #172033;
+  font: inherit;
+}
+
+.entry-form button {
+  padding: 0.75rem;
+  border: 0;
+  border-radius: 6px;
+  background: #244f9b;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.entry-form button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.entry-error,
+.entry-success {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.entry-error {
+  background: #fff0f0;
+  color: #a12626;
+}
+
+.entry-success {
+  background: #eaf8ef;
+  color: #21693b;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .entry-page {
+    padding: 1rem;
+  }
+}

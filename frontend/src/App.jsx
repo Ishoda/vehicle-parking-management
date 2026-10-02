@@ -10,8 +10,9 @@ import AccessCheckPage from './pages/AccessCheckPage'
 import ForbiddenPage from './pages/ForbiddenPage'
 import UserManagementPage from './pages/UserManagementPage'
 import SpaceAvailabilityPage from './pages/SpaceAvailabilityPage'
+import VehicleTypePage from './pages/VehicleTypePage'
+import ParkingRatePage from './pages/ParkingRatePage'
 import './App.css'
-import VehicleTypePage from "./pages/VehicleTypePage";
 
 export default function App() {
   const dispatch = useDispatch()
@@ -36,6 +37,7 @@ export default function App() {
         {sessionError ? (
           <>
             <p role="alert">{error}</p>
+
             <button
               type="button"
               disabled={loading}
@@ -60,7 +62,12 @@ export default function App() {
 
       <Route element={<ProtectedRoute allowedRoles={OPERATION_ROLES} />}>
         <Route path="/" element={<DashboardPage />} />
-        <Route path="/space-availability" element={<SpaceAvailabilityPage />}/>
+
+        <Route
+          path="/space-availability"
+          element={<SpaceAvailabilityPage />}
+        />
+
         <Route path="/forbidden" element={<ForbiddenPage />} />
 
         <Route
@@ -77,6 +84,11 @@ export default function App() {
 
       <Route element={<ProtectedRoute allowedRoles={ADMIN_ROLES} />}>
         <Route path="/users" element={<UserManagementPage />} />
+
+        <Route path="/vehicle-types" element={<VehicleTypePage />} />
+
+        <Route path="/rates" element={<ParkingRatePage />} />
+
         <Route
           path="/access/admin"
           element={
@@ -88,11 +100,6 @@ export default function App() {
           }
         />
       </Route>
-
-      <Route
-        path="/vehicle-types"
-        element={<VehicleTypePage />}
-      />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

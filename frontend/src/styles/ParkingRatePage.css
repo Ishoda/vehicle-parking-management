@@ -1,0 +1,153 @@
+.rates-page {
+  flex: 1;
+  min-width: 0;
+  padding: 2rem;
+  color: #172033;
+}
+
+.rates-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.rates-header h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.8rem;
+}
+
+.rates-header p {
+  margin: 0;
+  color: #596579;
+}
+
+.rates-card {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: #fff;
+  border: 1px solid #dce2eb;
+  border-radius: 12px;
+}
+
+.rates-card h2 {
+  margin: 0 0 1rem;
+  font-size: 1.2rem;
+}
+
+.rates-form fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.rates-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.rates-form label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.rates-form input,
+.rates-form select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0.7rem;
+  border: 1px solid #bcc6d5;
+  border-radius: 6px;
+  background: #fff;
+  color: #172033;
+  font: inherit;
+}
+
+.rates-page button {
+  padding: 0.65rem 1rem;
+  border: 1px solid #244f9b;
+  border-radius: 6px;
+  background: #244f9b;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.rates-page button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.rates-page .rates-cancel {
+  margin-top: 0.75rem;
+  background: #fff;
+  color: #244f9b;
+}
+
+.rates-actions {
+  margin-top: 1rem;
+}
+
+.rates-hint {
+  margin: 1rem 0 0;
+  color: #596579;
+  font-size: 0.9rem;
+}
+
+.rates-error,
+.rates-success {
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  border-radius: 6px;
+}
+
+.rates-error {
+  background: #fff0f0;
+  color: #a12626;
+}
+
+.rates-success {
+  background: #eaf8ef;
+  color: #21693b;
+}
+
+.rates-table-wrapper {
+  overflow-x: auto;
+}
+
+.rates-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.rates-table th,
+.rates-table td {
+  padding: 0.85rem;
+  border-bottom: 1px solid #e2e7ee;
+  vertical-align: top;
+}
+
+.rates-table th {
+  background: #f3f6fa;
+}
+
+@media (max-width: 720px) {
+  .rates-page {
+    padding: 1rem;
+  }
+
+  .rates-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rates-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

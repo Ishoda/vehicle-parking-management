@@ -60,21 +60,51 @@ BEGIN
         RETURN;
     END;
 
-    IF @ActionType = 7
+        IF @ActionType = 7
     BEGIN
-        IF @VehicleTypeID IS NULL
+        IF @VehicleTypeID IS NULL OR @VehicleTypeID <= 0
         BEGIN
-            SELECT 400 AS StatusCode, N'VehicleTypeID is required.' AS Message;
+            SELECT
+                400 AS StatusCode,
+                N'A valid VehicleTypeID is required.' AS Message;
             RETURN;
         END;
-        SELECT RateID, VehicleTypeID, RateName, RateAmount, RateUnit,
-               EffectiveFrom, EffectiveTo
+
+        IF NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.PARKING_VEHICLE_TYPE
+            WHERE VehicleTypeID = @VehicleTypeID
+              AND ActiveStatus = 1
+        )
+        BEGIN
+            SELECT
+                404 AS StatusCode,
+                N'Active vehicle type not found.' AS Message;
+            RETURN;
+        END;
+
+        DECLARE @LookupTimeUtc DATETIME2(0) = SYSUTCDATETIME();
+
+        SELECT
+            RateID,
+            VehicleTypeID,
+            RateName,
+            RateAmount,
+            RateUnit,
+            EffectiveFrom,
+            EffectiveTo
         FROM dbo.PARKING_RATE
         WHERE VehicleTypeID = @VehicleTypeID
           AND ActiveStatus = 1
-          AND EffectiveFrom <= SYSUTCDATETIME()
-          AND (EffectiveTo IS NULL OR EffectiveTo > SYSUTCDATETIME())
+          AND EffectiveFrom <= @LookupTimeUtc
+          AND
+          (
+              EffectiveTo IS NULL
+              OR EffectiveTo > @LookupTimeUtc
+          )
         ORDER BY RateUnit;
+
         RETURN;
     END;
 

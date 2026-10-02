@@ -70,6 +70,11 @@ export default function DashboardLayout({ children }) {
                 <span aria-hidden="true">◎</span>
                 User management
               </NavLink>
+
+              <NavLink to="/rates" className={navClass}>
+                <span aria-hidden="true">₹</span>
+                Parking rates
+              </NavLink>
             </RoleGate>
           </nav>
         </div>

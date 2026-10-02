@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from 'react-redux'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { signOut } from '../store/slices/authSlice'
 import RoleGate from '../components/RoleGate'
 import {
@@ -17,6 +17,8 @@ export default function DashboardPage() {
   const features = FEATURE_PERMISSIONS.filter(
     (feature) => hasRole(user, feature.roles),
   )
+
+  const navigate = useNavigate();
 
   return (
     <main className="auth-page">
@@ -38,6 +40,14 @@ export default function DashboardPage() {
         ))}
       </ul>
 
+      <button
+        type="button"
+        className="add-vehicle-type-button"
+        onClick={() => navigate("/vehicle-types")}
+      >
+        + Add New Vehicle Type
+      </button>
+
       <nav className="permission-links" aria-label="Permission checks">
         <RoleGate allowedRoles={ADMIN_ROLES}>
           <Link to="/users">Manage users</Link>
@@ -51,6 +61,7 @@ export default function DashboardPage() {
 
       {error && <p role="alert">{error}</p>}
 
+      
       <button
         className="logout-button"
         type="button"
@@ -59,6 +70,9 @@ export default function DashboardPage() {
       >
         {loading ? 'Logging out…' : 'Log out'}
       </button>
+
+
+
     </main>
   )
 }

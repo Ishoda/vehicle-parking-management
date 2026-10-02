@@ -9,12 +9,28 @@ CREATE OR ALTER PROCEDURE dbo.PARKING_SP_Daily_Entry
     @VehicleNumber VARCHAR(30),
     @VehicleTypeID INT,
     @OperatorUserID INT,
-    @SpaceID INT = NULL
+    @SpaceID INT = NULL,
+	@CustomerName NVARCHAR(200) = NULL,
+    @MobileNumber VARCHAR(20) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
     SET @VehicleNumber = UPPER(NULLIF(LTRIM(RTRIM(@VehicleNumber)), ''));
+	SET @VehicleNumber = UPPER(NULLIF(LTRIM(RTRIM(@VehicleNumber)), ''));
+	    SET @CustomerName = NULLIF(LTRIM(RTRIM(@CustomerName)), N'');
+
+    SET @MobileNumber = NULLIF(LTRIM(RTRIM(@MobileNumber)), '');
+
+    IF @MobileNumber IS NOT NULL
+       AND LEN(@MobileNumber) NOT BETWEEN 7 AND 20
+    BEGIN
+        SELECT
+            400 AS StatusCode,
+            N'Mobile number must contain between 7 and 20 characters.'
+                AS Message;
+        RETURN;
+    END;
 
     IF @VehicleNumber IS NULL OR @VehicleTypeID IS NULL OR @OperatorUserID IS NULL
     BEGIN
@@ -122,15 +138,17 @@ BEGIN
 
         DECLARE @TicketNumber VARCHAR(40) = 'T-' + CONVERT(VARCHAR(36), NEWID());
         INSERT dbo.PARKING_TICKET
-            (TicketNumber, VehicleID, SpaceID,
-             HourlyRateID, DailyRateID, AppliedHourlyRate, AppliedDailyRate,
-             MonthlyContractID, ParkingType, EntryDateTime, TicketStatus,
-             EntryOperatorID, CreatedAt, CreatedBy)
+			(TicketNumber, VehicleID, SpaceID, HourlyRateID, 
+			DailyRateID, AppliedHourlyRate, AppliedDailyRate, 
+			MonthlyContractID, ParkingType, EntryDateTime, 
+			TicketStatus, EntryOperatorID, CreatedAt, CreatedBy, 
+			CustomerName, MobileNumber
+        )
         VALUES
-            (@TicketNumber, @VehicleID, @SpaceID,
-             @HourlyRateID, @DailyRateID, @HourlyRate, @DailyRate,
-             NULL, 'DAILY', @Now, 'OPEN',
-             @OperatorUserID, @Now, @OperatorUserID);
+			(@TicketNumber, @VehicleID, @SpaceID, @HourlyRateID, 
+			@DailyRateID, @HourlyRate, @DailyRate, NULL, 'DAILY', 
+			@Now, 'OPEN', @OperatorUserID, @Now, @OperatorUserID, 
+			@CustomerName, @MobileNumber);
 
         DECLARE @TicketID INT = CONVERT(INT, SCOPE_IDENTITY());
         COMMIT TRANSACTION;

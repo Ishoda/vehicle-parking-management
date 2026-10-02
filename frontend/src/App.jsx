@@ -12,6 +12,7 @@ import UserManagementPage from './pages/UserManagementPage'
 import SpaceAvailabilityPage from './pages/SpaceAvailabilityPage'
 import VehicleTypePage from './pages/VehicleTypePage'
 import ParkingRatePage from './pages/ParkingRatePage'
+import VehicleEntryPage from './pages/VehicleEntryPage'
 import './App.css'
 
 export default function App() {
@@ -62,11 +63,8 @@ export default function App() {
 
       <Route element={<ProtectedRoute allowedRoles={OPERATION_ROLES} />}>
         <Route path="/" element={<DashboardPage />} />
-
-        <Route
-          path="/space-availability"
-          element={<SpaceAvailabilityPage />}
-        />
+        <Route path="/vehicle-entry" element={<VehicleEntryPage />} />
+        <Route path="/space-availability" element={<SpaceAvailabilityPage />}/>
 
         <Route path="/forbidden" element={<ForbiddenPage />} />
 

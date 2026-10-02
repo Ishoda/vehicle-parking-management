@@ -373,7 +373,7 @@ BEGIN
 				UpdatedAt = SYSUTCDATETIME(),
 				UpdatedBy = @PerformedByUserID
 			WHERE SpaceID = @SpaceID
-				AND ActiveStatus = 1;
+				AND ActiveStatus = 1
 				AND SpaceStatus = 'BLOCKED'
 
 			SELECT 200 AS StatusCode,

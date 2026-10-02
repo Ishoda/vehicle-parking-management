@@ -9,6 +9,7 @@ import DashboardPage from './pages/DashboardPage'
 import AccessCheckPage from './pages/AccessCheckPage'
 import ForbiddenPage from './pages/ForbiddenPage'
 import UserManagementPage from './pages/UserManagementPage'
+import SpaceAvailabilityPage from './pages/SpaceAvailabilityPage'
 import './App.css'
 import VehicleTypePage from "./pages/VehicleTypePage";
 
@@ -59,6 +60,7 @@ export default function App() {
 
       <Route element={<ProtectedRoute allowedRoles={OPERATION_ROLES} />}>
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/space-availability" element={<SpaceAvailabilityPage />}/>
         <Route path="/forbidden" element={<ForbiddenPage />} />
 
         <Route

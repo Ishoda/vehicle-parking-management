@@ -22,3 +22,8 @@ export async function createDailyEntry(request) {
   const response = await apiClient.post('/VehicleEntry/Daily', request)
   return response.data
 }
+
+export async function createMonthlyEntry(request) {
+  const response = await apiClient.post('/VehicleEntry/Monthly', request)
+  return response.data
+}

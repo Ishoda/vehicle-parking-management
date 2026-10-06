@@ -12,7 +12,7 @@ CREATE TABLE dbo.PARKING_MONTHLY_CONTRACT
         EndDate             DATE NOT NULL,
         ContractStatus      VARCHAR(20) NOT NULL CONSTRAINT DF_PARKING_MONTHLY_CONTRACT_Status DEFAULT ('ACTIVE'),
         CancelledAt         DATETIME2(0) NULL,
-        CancellationReason NVARCHAR(500) NULL,
+        CancelledReason NVARCHAR(500) NULL,
 
         CreatedAt           DATETIME2(0) NOT NULL CONSTRAINT DF_PARKING_MONTHLY_CONTRACT_CreatedAt DEFAULT (SYSUTCDATETIME()),
         CreatedBy           INT NULL,

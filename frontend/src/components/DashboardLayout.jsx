@@ -63,6 +63,10 @@ export default function DashboardLayout({ children }) {
                 <span aria-hidden="true">P</span>
                 Space availability
               </NavLink>
+              <NavLink to="/current-parking" className={navClass}>
+                <span aria-hidden="true">V</span>
+                Current parking
+              </NavLink>
               <NavLink to="/vehicle-entry" className={navClass}>
                 <span aria-hidden="true">E</span>
                 Vehicle entry

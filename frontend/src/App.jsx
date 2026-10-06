@@ -13,6 +13,7 @@ import SpaceAvailabilityPage from './pages/SpaceAvailabilityPage'
 import VehicleTypePage from './pages/VehicleTypePage'
 import ParkingRatePage from './pages/ParkingRatePage'
 import VehicleEntryPage from './pages/VehicleEntryPage'
+import CurrentParkingPage from './pages/CurrentParkingPage'
 import './App.css'
 
 export default function App() {
@@ -65,7 +66,7 @@ export default function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/vehicle-entry" element={<VehicleEntryPage />} />
         <Route path="/space-availability" element={<SpaceAvailabilityPage />}/>
-
+        <Route path="/current-parking" element={<CurrentParkingPage />} />
         <Route path="/forbidden" element={<ForbiddenPage />} />
 
         <Route

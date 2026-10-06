@@ -4,9 +4,11 @@ import DashboardLayout from '../components/DashboardLayout'
 import { sessionExpired } from '../store/slices/authSlice'
 import {
   createDailyEntry,
+  createMonthlyEntry,
   getEntrySpaces,
   getEntryVehicleTypes,
 } from '../services/VehicleEntryService'
+
 import '../styles/VehicleEntryPage.css'
 
 const initialForm = {
@@ -150,33 +152,53 @@ export default function VehicleEntryPage() {
       return
     }
 
+    const vehicleTypeID = Number(form.vehicleTypeID)
+
+    if (!Number.isInteger(vehicleTypeID) || vehicleTypeID <= 0) {
+      setError('Select a vehicle type.')
+      return
+    }
+
+    if (!['DAILY', 'MONTHLY'].includes(form.parkingType)) {
+      setError('Select Daily or Monthly parking.')
+      return
+    }
+
     const mobileNumber = form.mobileNumber.trim()
 
     if (
+      form.parkingType === 'DAILY' &&
       mobileNumber &&
-      (mobileNumber.length < 7 || mobileNumber.length > 20)
+      !/^[0-9]{10}$/.test(mobileNumber)
     ) {
-      setError('Mobile number must contain between 7 and 20 characters.')
+      setError('Mobile number must contain exactly 10 digits.')
       return
     }
 
     setSaving(true)
 
     try {
-      const result = await createDailyEntry({
+      const request = {
         vehicleNumber,
-        vehicleTypeID: Number(form.vehicleTypeID),
+        vehicleTypeID,
         parkingType: form.parkingType,
         spaceID: form.spaceID ? Number(form.spaceID) : null,
-        customerName: form.customerName.trim(),
-        mobileNumber,
-      })
+      }
+
+      const result = form.parkingType === 'MONTHLY'
+        ? await createMonthlyEntry(request)
+        : await createDailyEntry({
+            ...request,
+            customerName: form.customerName.trim(),
+            mobileNumber,
+          })
 
       setTicket(result)
 
       setForm((current) => ({
         ...initialForm,
         vehicleTypeID: current.vehicleTypeID,
+        parkingType: current.parkingType,
       }))
 
       setRefreshKey((current) => current + 1)
@@ -225,6 +247,15 @@ export default function VehicleEntryPage() {
               <strong>Entry time:</strong>{' '}
               {new Date(ticket.entryDateTime).toLocaleString()}
             </p>
+            <p>
+              <strong>Parking type:</strong> {ticket.parkingType}
+            </p>
+
+            {ticket.contractNumber && (
+              <p>
+                <strong>Contract:</strong> {ticket.contractNumber}
+              </p>
+            )}
           </section>
         )}
 
@@ -270,9 +301,7 @@ export default function VehicleEntryPage() {
                 required
               >
                 <option value="DAILY">Daily</option>
-                <option value="MONTHLY" disabled>
-                  Monthly — contract entry integration pending
-                </option>
+                <option value="MONTHLY">Monthly</option>
               </select>
             </label>
 
@@ -318,33 +347,46 @@ export default function VehicleEntryPage() {
                 </p>
               )}
 
-            <label>
-              Customer name — optional
-              <input
-                name="customerName"
-                value={form.customerName}
-                onChange={changeField}
-                maxLength={200}
-              />
-            </label>
+            {form.parkingType === 'DAILY' ? (
+              <>
+                    <label>
+                      Customer name - optional
+                      <input
+                        name="customerName"
+                        value={form.customerName}
+                        onChange={changeField}
+                        maxLength={200}
+                      />
+                    </label>
 
-            <label>
-              Mobile number — optional
-              <input
-                name="mobileNumber"
-                type="tel"
-                value={form.mobileNumber}
-                onChange={changeField}
-                maxLength={20}
-              />
-            </label>
+                    <label>
+                      Mobile number - optional
+                      <input
+                        name="mobileNumber"
+                        type="tel"
+                        value={form.mobileNumber}
+                        onChange={changeField}
+                        maxLength={10}
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <p>
+                    Monthly entry uses the registered vehicle and customer
+                    details from its valid contract.
+                  </p>
+                )}
 
             <p>
               Entry date and time are recorded by the server when entry succeeds.
             </p>
 
             <button type="submit" disabled={!canSubmit}>
-              {saving ? 'Registering…' : 'Register daily entry'}
+              {saving
+                ? 'Registering...'
+                : form.parkingType === 'MONTHLY'
+                  ? 'Register monthly entry'
+                  : 'Register daily entry'}
             </button>
           </fieldset>
         </form>

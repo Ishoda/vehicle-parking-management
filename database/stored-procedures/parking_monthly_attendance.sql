@@ -15,13 +15,40 @@ CREATE OR ALTER PROCEDURE dbo.PARKING_SP_Monthly_Attendance
     @MonthlyCapacityPercentage DECIMAL(5,2) = 30.00,
 
     @FromDate                DATE = NULL,
-    @ToDate                  DATE = NULL
+    @ToDate                  DATE = NULL,
+
+	@VehicleNumber VARCHAR(30) = NULL,
+    @ExpectedVehicleTypeID INT = NULL
 )
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
+	IF @ActionType IN (3, 4)
+	   AND @PerformedByUserID IS NULL
+	BEGIN
+		SELECT
+			400 AS StatusCode,
+			N'PerformedByUserID is required for entry and exit.' AS Message;
+		RETURN;
+	END;
+
+	IF @ActionType IN (3, 4)
+       AND NOT EXISTS
+       (
+           SELECT 1
+           FROM dbo.PARKING_USER
+           WHERE UserID = @PerformedByUserID
+             AND ActiveStatus = 1
+             AND UserRole IN ('A', 'O')
+       )
+    BEGIN
+        SELECT
+            403 AS StatusCode,
+            N'An active administrator or operator is required.' AS Message;
+        RETURN;
+    END;
 
     /* ============================================================
        VALID ACTION
@@ -169,268 +196,323 @@ BEGIN
        ACTION 3
        MONTHLY CUSTOMER ENTRY
        ============================================================ */
-    IF @ActionType = 3
+	    IF @ActionType = 3
     BEGIN
+        SET @VehicleNumber =
+            UPPER(NULLIF(LTRIM(RTRIM(@VehicleNumber)), ''));
 
-        IF @VehicleID IS NULL
+        IF @VehicleID IS NULL AND @VehicleNumber IS NULL
         BEGIN
             SELECT
                 400 AS StatusCode,
-                N'VehicleID is required.' AS Message;
+                N'Vehicle number or VehicleID is required.' AS Message;
             RETURN;
         END;
 
-
-        IF @MonthlyCapacityPercentage < 0
+        IF @MonthlyCapacityPercentage IS NULL
+           OR @MonthlyCapacityPercentage < 0
            OR @MonthlyCapacityPercentage > 100
         BEGIN
             SELECT
                 400 AS StatusCode,
-                N'Monthly capacity percentage must be between 0 and 100.' AS Message;
+                N'Monthly capacity percentage must be between 0 and 100.'
+                    AS Message;
             RETURN;
         END;
 
-
         BEGIN TRY
-
             BEGIN TRANSACTION;
 
-
-            /* ----------------------------------------------------
-               Find active monthly contract for this vehicle
-               ---------------------------------------------------- */
-            DECLARE @ActiveContractID INT;
-            DECLARE @VehicleTypeID INT;
-
+            DECLARE
+                @ResolvedVehicleID INT,
+                @EntryVehicleTypeID INT,
+                @EntryCustomerID INT,
+                @EntryVehicleNumber VARCHAR(30);
 
             SELECT
-                @ActiveContractID = mc.ContractID,
-                @VehicleTypeID = v.VehicleTypeID
+                @ResolvedVehicleID = VehicleID,
+                @EntryVehicleTypeID = VehicleTypeID,
+                @EntryCustomerID = CustomerID,
+                @EntryVehicleNumber = VehicleNumber
+            FROM dbo.PARKING_CUSTOMER_VEHICLE WITH (UPDLOCK, HOLDLOCK)
+            WHERE ActiveStatus = 1
+              AND
+              (
+                  (@VehicleNumber IS NOT NULL
+                   AND VehicleNumber = @VehicleNumber)
+                  OR
+                  (@VehicleNumber IS NULL
+                   AND VehicleID = @VehicleID)
+              );
 
-            FROM dbo.PARKING_MONTHLY_CONTRACT AS mc WITH (UPDLOCK, HOLDLOCK)
-
-            INNER JOIN dbo.PARKING_CUSTOMER_VEHICLE AS v
-                ON v.VehicleID = mc.VehicleID
-
-            WHERE mc.VehicleID = @VehicleID
-              AND mc.ContractStatus = 'ACTIVE'
-              AND mc.StartDate <= CAST(GETDATE() AS DATE)
-              AND mc.EndDate >= CAST(GETDATE() AS DATE)
-              AND v.ActiveStatus = 1;
-
-
-            IF @ActiveContractID IS NULL
+            IF @ResolvedVehicleID IS NULL
+               OR @EntryCustomerID IS NULL
+               OR
+               (
+                   @VehicleID IS NOT NULL
+                   AND @VehicleID <> @ResolvedVehicleID
+               )
             BEGIN
                 ROLLBACK TRANSACTION;
-
                 SELECT
                     404 AS StatusCode,
-                    N'No active monthly contract was found for this vehicle.' AS Message;
+                    N'Active registered monthly vehicle not found.' AS Message;
                 RETURN;
             END;
 
+            SET @VehicleID = @ResolvedVehicleID;
 
-            /* ----------------------------------------------------
-               Check whether vehicle is already inside
-               ---------------------------------------------------- */
+            IF @ExpectedVehicleTypeID IS NOT NULL
+               AND @ExpectedVehicleTypeID <> @EntryVehicleTypeID
+            BEGIN
+                ROLLBACK TRANSACTION;
+                SELECT
+                    409 AS StatusCode,
+                    N'Selected vehicle type does not match the registered vehicle.'
+                        AS Message;
+                RETURN;
+            END;
+
+            IF NOT EXISTS
+            (
+                SELECT 1
+                FROM dbo.PARKING_VEHICLE_TYPE WITH (HOLDLOCK)
+                WHERE VehicleTypeID = @EntryVehicleTypeID
+                  AND ActiveStatus = 1
+            )
+            BEGIN
+                ROLLBACK TRANSACTION;
+                SELECT
+                    409 AS StatusCode,
+                    N'The registered vehicle type is inactive.' AS Message;
+                RETURN;
+            END;
+
+            DECLARE
+                @EntryCustomerName NVARCHAR(200),
+                @EntryMobileNumber VARCHAR(20);
+
+            SELECT
+                @EntryCustomerName = CustomerName,
+                @EntryMobileNumber = MobileNumber
+            FROM dbo.PARKING_CUSTOMER WITH (HOLDLOCK)
+            WHERE CustomerID = @EntryCustomerID
+              AND ActiveStatus = 1;
+
+            IF @EntryCustomerName IS NULL
+            BEGIN
+                ROLLBACK TRANSACTION;
+                SELECT
+                    409 AS StatusCode,
+                    N'The registered customer is inactive.' AS Message;
+                RETURN;
+            END;
+
             IF EXISTS
             (
                 SELECT 1
                 FROM dbo.PARKING_TICKET WITH (UPDLOCK, HOLDLOCK)
                 WHERE VehicleID = @VehicleID
-                  AND TicketStatus = 'OPEN'
+                  AND ExitDateTime IS NULL
             )
             BEGIN
                 ROLLBACK TRANSACTION;
-
                 SELECT
                     409 AS StatusCode,
-                    N'This vehicle already has an open parking attendance record.' AS Message;
+                    N'This vehicle already has an open parking visit.' AS Message;
                 RETURN;
             END;
 
+            DECLARE @EntryTimeUtc DATETIME2(0) = SYSUTCDATETIME();
 
-            /* ----------------------------------------------------
-               Get monthly capacity
-               ---------------------------------------------------- */
-            DECLARE @ActiveMonthlyContracts INT;
-            DECLARE @ReservedMonthlySpaces INT;
-            DECLARE @CurrentMonthlyVehicles INT;
+            -- Inclusive Sri Lankan contract dates; timestamps remain UTC.
+            DECLARE @EntryBusinessDate DATE =
+                CONVERT(DATE, DATEADD(MINUTE, 330, @EntryTimeUtc));
 
+            DECLARE
+                @EntryActiveContractID INT,
+                @EntryContractNumber VARCHAR(40),
+                @EntryValidContractCount INT;
+
+            SELECT @EntryValidContractCount = COUNT(*)
+            FROM dbo.PARKING_MONTHLY_CONTRACT WITH (UPDLOCK, HOLDLOCK)
+            WHERE VehicleID = @VehicleID
+              AND CustomerID = @EntryCustomerID
+              AND ContractStatus = 'ACTIVE'
+              AND CancelledAt IS NULL
+              AND StartDate <= @EntryBusinessDate
+              AND EndDate >= @EntryBusinessDate;
+
+            IF @EntryValidContractCount = 0
+            BEGIN
+                ROLLBACK TRANSACTION;
+                SELECT
+                    409 AS StatusCode,
+                    N'No valid active monthly contract covers today.'
+                        AS Message;
+                RETURN;
+            END;
+
+            IF @EntryValidContractCount > 1
+            BEGIN
+                ROLLBACK TRANSACTION;
+                SELECT
+                    409 AS StatusCode,
+                    N'Multiple valid contracts exist. An administrator must resolve the overlap.'
+                        AS Message;
+                RETURN;
+            END;
 
             SELECT
-                @ActiveMonthlyContracts = COUNT(*)
+                @EntryActiveContractID = ContractID,
+                @EntryContractNumber = ContractNumber
+            FROM dbo.PARKING_MONTHLY_CONTRACT
+            WHERE VehicleID = @VehicleID
+              AND CustomerID = @EntryCustomerID
+              AND ContractStatus = 'ACTIVE'
+              AND CancelledAt IS NULL
+              AND StartDate <= @EntryBusinessDate
+              AND EndDate >= @EntryBusinessDate;
+
+            DECLARE
+                @EntryActiveMonthlyContracts INT,
+                @EntryReservedMonthlySpaces INT,
+                @EntryCurrentMonthlyVehicles INT;
+
+            SELECT @EntryActiveMonthlyContracts = COUNT(*)
             FROM dbo.PARKING_MONTHLY_CONTRACT WITH (UPDLOCK, HOLDLOCK)
             WHERE ContractStatus = 'ACTIVE';
 
+            -- Preserve the existing partner-defined capacity formula.
+            SET @EntryReservedMonthlySpaces =
+                CONVERT(INT, CEILING(
+                    @EntryActiveMonthlyContracts
+                    * @MonthlyCapacityPercentage / 100.0
+                ));
 
-            SET @ReservedMonthlySpaces =
-                CEILING(
-                    @ActiveMonthlyContracts
-                    * @MonthlyCapacityPercentage
-                    / 100.0
-                );
-
-
-            SELECT
-                @CurrentMonthlyVehicles = COUNT(*)
+            SELECT @EntryCurrentMonthlyVehicles = COUNT(*)
             FROM dbo.PARKING_TICKET WITH (UPDLOCK, HOLDLOCK)
             WHERE ParkingType = 'MONTHLY'
-              AND TicketStatus = 'OPEN';
+              AND ExitDateTime IS NULL;
 
-
-            /* ----------------------------------------------------
-               Check monthly reserved capacity
-               ---------------------------------------------------- */
-            IF @CurrentMonthlyVehicles >= @ReservedMonthlySpaces
+            IF @EntryCurrentMonthlyVehicles >= @EntryReservedMonthlySpaces
             BEGIN
                 ROLLBACK TRANSACTION;
-
                 SELECT
                     409 AS StatusCode,
-                    N'Monthly reserved parking capacity is currently full.' AS Message,
-
-                    @ReservedMonthlySpaces
-                        AS ReservedMonthlySpaces,
-
-                    @CurrentMonthlyVehicles
-                        AS CurrentlyOccupiedMonthlySpaces;
-
+                    N'Monthly reserved parking capacity is currently full.'
+                        AS Message;
                 RETURN;
             END;
 
+            DECLARE @EntryAllocatedSpaceID INT = @SpaceID;
 
-            /* ----------------------------------------------------
-               Find compatible available physical space
-               ---------------------------------------------------- */
-            DECLARE @AvailableSpaceID INT;
+            IF @EntryAllocatedSpaceID IS NULL
+            BEGIN
+                SELECT TOP (1)
+                    @EntryAllocatedSpaceID = S.SpaceID
+                FROM dbo.PARKING_SPACE AS S
+                    WITH (UPDLOCK, READPAST, ROWLOCK)
+                WHERE S.VehicleTypeID = @EntryVehicleTypeID
+                  AND S.ActiveStatus = 1
+                  AND S.SpaceStatus = 'AVAILABLE'
+                  AND NOT EXISTS
+                  (
+                      SELECT 1
+                      FROM dbo.PARKING_TICKET AS T
+                      WHERE T.SpaceID = S.SpaceID
+                        AND T.ExitDateTime IS NULL
+                  )
+                ORDER BY S.SpaceCode;
+            END;
 
+            IF @EntryAllocatedSpaceID IS NULL
+            BEGIN
+                ROLLBACK TRANSACTION;
+                SELECT
+                    409 AS StatusCode,
+                    N'No matching available parking space.' AS Message;
+                RETURN;
+            END;
 
-            SELECT TOP 1
-                @AvailableSpaceID = SpaceID
-
-            FROM dbo.PARKING_SPACE WITH (UPDLOCK, READPAST)
-
-            WHERE VehicleTypeID = @VehicleTypeID
-              AND SpaceStatus = 'AVAILABLE'
+            UPDATE dbo.PARKING_SPACE
+            SET
+                SpaceStatus = 'OCCUPIED',
+                UpdatedAt = @EntryTimeUtc,
+                UpdatedBy = @PerformedByUserID
+            WHERE SpaceID = @EntryAllocatedSpaceID
+              AND VehicleTypeID = @EntryVehicleTypeID
               AND ActiveStatus = 1
+              AND SpaceStatus = 'AVAILABLE';
 
-            ORDER BY SpaceID;
-
-
-            IF @AvailableSpaceID IS NULL
+            IF @@ROWCOUNT <> 1
             BEGIN
                 ROLLBACK TRANSACTION;
-
                 SELECT
                     409 AS StatusCode,
-                    N'No available parking space is currently available for this vehicle type.' AS Message;
+                    N'Selected space is occupied, blocked, inactive, or for a different vehicle type.'
+                        AS Message;
                 RETURN;
             END;
 
+            DECLARE @EntryTicketNumber VARCHAR(40) =
+                'M-' + CONVERT(VARCHAR(36), NEWID());
 
-            /* ----------------------------------------------------
-               Generate ticket number
-               ---------------------------------------------------- */
-            DECLARE @TicketNumber NVARCHAR(50);
-
-
-            SET @TicketNumber =
-                N'M-' +
-                CONVERT(NVARCHAR(8), GETDATE(), 112) +
-                N'-' +
-                RIGHT(
-                    N'000000' +
-                    CONVERT(
-                        NVARCHAR(20),
-                        ISNULL(
-                            (
-                                SELECT MAX(TicketID) + 1
-                                FROM dbo.PARKING_TICKET
-                            ),
-                            1
-                        )
-                    ),
-                    6
-                );
-
-
-            /* ----------------------------------------------------
-               Insert monthly attendance ticket
-               ---------------------------------------------------- */
-            INSERT INTO dbo.PARKING_TICKET
+            INSERT dbo.PARKING_TICKET
             (
                 TicketNumber,
                 VehicleID,
                 SpaceID,
-                RateID,
                 MonthlyContractID,
                 ParkingType,
                 EntryDateTime,
-                ExitDateTime,
-                AppliedRate,
-                BillableHours,
-                CalculatedAmount,
                 TicketStatus,
-                EntryOperatorID
+                EntryOperatorID,
+                CreatedAt,
+                CreatedBy,
+                CustomerName,
+                MobileNumber
             )
             VALUES
             (
-                @TicketNumber,
+                @EntryTicketNumber,
                 @VehicleID,
-                @AvailableSpaceID,
-                NULL,
-                @ActiveContractID,
+                @EntryAllocatedSpaceID,
+                @EntryActiveContractID,
                 'MONTHLY',
-                SYSUTCDATETIME(),
-                NULL,
-                NULL,
-                NULL,
-                NULL,
+                @EntryTimeUtc,
                 'OPEN',
-                @PerformedByUserID
+                @PerformedByUserID,
+                @EntryTimeUtc,
+                @PerformedByUserID,
+                @EntryCustomerName,
+                @EntryMobileNumber
             );
 
-
-            DECLARE @NewTicketID INT =
+            DECLARE @EntryNewTicketID INT =
                 CONVERT(INT, SCOPE_IDENTITY());
 
-
-            /* ----------------------------------------------------
-               Mark space occupied
-               ---------------------------------------------------- */
-            UPDATE dbo.PARKING_SPACE
-            SET
-                SpaceStatus = 'OCCUPIED',
-                UpdatedAt = SYSUTCDATETIME(),
-                UpdatedBy = @PerformedByUserID
-            WHERE SpaceID = @AvailableSpaceID;
-
-
             COMMIT TRANSACTION;
-
 
             SELECT
                 201 AS StatusCode,
                 N'Monthly customer entry recorded successfully.' AS Message,
-
-                @NewTicketID AS TicketID,
-                @TicketNumber AS TicketNumber,
-                @ActiveContractID AS ContractID,
-                @AvailableSpaceID AS SpaceID;
+                @EntryNewTicketID AS TicketID,
+                @EntryTicketNumber AS TicketNumber,
+                @EntryVehicleNumber AS VehicleNumber,
+                @EntryAllocatedSpaceID AS SpaceID,
+                @EntryTimeUtc AS EntryDateTime,
+                @EntryActiveContractID AS ContractID,
+                @EntryContractNumber AS ContractNumber;
 
             RETURN;
-
         END TRY
-
         BEGIN CATCH
-
             IF XACT_STATE() <> 0
                 ROLLBACK TRANSACTION;
 
             THROW;
-
-        END CATCH
+        END CATCH;
     END;
 
 

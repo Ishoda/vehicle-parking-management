@@ -1,7 +1,7 @@
 USE [VehicleParkingManagementDB];
 GO
 
-CREATE PROCEDURE dbo.PARKING_SP_User
+CREATE OR ALTER PROCEDURE dbo.PARKING_SP_User
 (
     @ActionType         INT,
 
@@ -11,12 +11,21 @@ CREATE PROCEDURE dbo.PARKING_SP_User
     @Username           NVARCHAR(100) = NULL,
     @PasswordHash       NVARCHAR(500) = NULL,
     @UserRole           CHAR(1) = NULL,
-    @PerformedByUserID  INT = NULL
+    @PerformedByUserID  INT = NULL,
+
+	@p_uid              NVARCHAR(100) = NULL,
+    @ResultStatusCode   INT = NULL OUTPUT,
+    @Result             VARCHAR(MAX) = NULL OUTPUT,
+    @ExceptionMessage   VARCHAR(MAX) = NULL OUTPUT
 )
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
+
+	SET @ResultStatusCode = 1;
+	SET @Result = 'Success';
+	SET @ExceptionMessage = NULL;
 
     /* Remove unnecessary spaces from supplied values. */
     SET @FirstName = NULLIF(LTRIM(RTRIM(@FirstName)), N'');
@@ -47,6 +56,8 @@ BEGIN
     BEGIN
         IF @Username IS NULL
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Invalid request.';
             SELECT
                 400 AS StatusCode,
                 N'Username is required.' AS Message;
@@ -84,20 +95,22 @@ BEGIN
            OR @PasswordHash IS NULL
            OR @UserRole IS NULL
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Invalid request.';
             SELECT
                 400 AS StatusCode,
-                N'First name, last name, username, password hash and role are required.'
-                    AS Message;
+                N'First name, last name, username, password hash and role are required.' AS Message;
 
             RETURN;
         END;
 
         IF @UserRole NOT IN ('A', 'O')
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Invalid request.';
             SELECT
                 400 AS StatusCode,
-                N'User role must be A for Admin or O for Operator.'
-                    AS Message;
+                N'User role must be A for Admin or O for Operator.' AS Message;
 
             RETURN;
         END;
@@ -109,6 +122,8 @@ BEGIN
             WHERE Username = @Username
         )
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Operation conflicts with the current user data.';
             SELECT
                 409 AS StatusCode,
                 N'Username already exists.' AS Message;
@@ -126,10 +141,11 @@ BEGIN
         BEGIN
             IF @UserRole <> 'A'
             BEGIN
+				SET @ResultStatusCode = -1;
+				SET @Result = 'Invalid request.';
                 SELECT
                     400 AS StatusCode,
-                    N'The first system user must be an administrator.'
-                        AS Message;
+                    N'The first system user must be an administrator.' AS Message;
 
                 RETURN;
             END;
@@ -146,10 +162,11 @@ BEGIN
                   AND ActiveStatus = 1
             )
             BEGIN
+				SET @ResultStatusCode = -1;
+				SET @Result = 'Operation is not authorized.';
                 SELECT
                     403 AS StatusCode,
-                    N'Only an active administrator can create users.'
-                        AS Message;
+                    N'Only an active administrator can create users.' AS Message;
 
                 RETURN;
             END;
@@ -242,6 +259,8 @@ BEGIN
     BEGIN
         IF @UserID IS NULL
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Invalid request.';
             SELECT
                 400 AS StatusCode,
                 N'User ID is required.' AS Message;
@@ -281,6 +300,8 @@ BEGIN
               AND ActiveStatus = 1
         )
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Operation is not authorized.';
             SELECT
                 403 AS StatusCode,
                 N'Only an active administrator can update users.'
@@ -295,16 +316,19 @@ BEGIN
            OR @Username IS NULL
            OR @UserRole IS NULL
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Invalid request.';
             SELECT
                 400 AS StatusCode,
-                N'User ID, name, username and role are required.'
-                    AS Message;
+                N'User ID, name, username and role are required.' AS Message;
 
             RETURN;
         END;
 
         IF @UserRole NOT IN ('A', 'O')
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Invalid request.';
             SELECT
                 400 AS StatusCode,
                 N'User role must be A for Admin or O for Operator.'
@@ -320,6 +344,8 @@ BEGIN
             WHERE UserID = @UserID
         )
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'User was not found.';
             SELECT
                 404 AS StatusCode,
                 N'User was not found.' AS Message;
@@ -335,6 +361,8 @@ BEGIN
               AND UserID <> @UserID
         )
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Operation conflicts with the current user data.';
             SELECT
                 409 AS StatusCode,
                 N'Username already exists.' AS Message;
@@ -342,10 +370,7 @@ BEGIN
             RETURN;
         END;
 
-        /*
-            Do not allow the final active administrator to be changed
-            into an operator.
-        */
+        /*Do not allow the final active administrator to be changed into an operator.*/
         IF @UserRole = 'O'
            AND EXISTS
            (
@@ -363,6 +388,8 @@ BEGIN
                  AND ActiveStatus = 1
            ) = 1
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Operation conflicts with the current user data.';
             SELECT
                 409 AS StatusCode,
                 N'The final active administrator cannot be changed into an operator.'
@@ -402,6 +429,8 @@ BEGIN
               AND ActiveStatus = 1
         )
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Operation is not authorized.';
             SELECT
                 403 AS StatusCode,
                 N'Only an active administrator can deactivate users.'
@@ -412,6 +441,8 @@ BEGIN
 
         IF @UserID IS NULL
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Invalid request.';
             SELECT
                 400 AS StatusCode,
                 N'User ID is required.' AS Message;
@@ -421,6 +452,8 @@ BEGIN
 
         IF @UserID = @PerformedByUserID
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Operation conflicts with the current user data.';
             SELECT
                 409 AS StatusCode,
                 N'You cannot deactivate your own account.'
@@ -436,6 +469,8 @@ BEGIN
             WHERE UserID = @UserID
         )
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'User was not found.';
             SELECT
                 404 AS StatusCode,
                 N'User was not found.' AS Message;
@@ -471,6 +506,8 @@ BEGIN
               AND ActiveStatus = 1
         )
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Operation is not authorized.';
             SELECT
                 403 AS StatusCode,
                 N'Only an active administrator can reactivate users.'
@@ -481,6 +518,8 @@ BEGIN
 
         IF @UserID IS NULL
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Invalid request.';
             SELECT
                 400 AS StatusCode,
                 N'User ID is required.' AS Message;
@@ -495,6 +534,8 @@ BEGIN
             WHERE UserID = @UserID
         )
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'User was not found.';
             SELECT
                 404 AS StatusCode,
                 N'User was not found.' AS Message;
@@ -525,6 +566,8 @@ BEGIN
     BEGIN
         IF @UserID IS NULL OR @PasswordHash IS NULL
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Invalid request.';
             SELECT
                 400 AS StatusCode,
                 N'User ID and password hash are required.'
@@ -533,10 +576,7 @@ BEGIN
             RETURN;
         END;
 
-        /*
-            A user can change their own password.
-            An active administrator can reset another user's password.
-        */
+        /*A user can change their own password.An active administrator can reset another user's password.*/
         IF @PerformedByUserID <> @UserID
            AND NOT EXISTS
            (
@@ -547,6 +587,8 @@ BEGIN
                  AND ActiveStatus = 1
            )
         BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Operation is not authorized.';
             SELECT
                 403 AS StatusCode,
                 N'You are not authorized to change this password.'
@@ -555,19 +597,29 @@ BEGIN
             RETURN;
         END;
 
-        IF NOT EXISTS
-        (
-            SELECT 1
-            FROM dbo.PARKING_USER
-            WHERE UserID = @UserID
-        )
-        BEGIN
-            SELECT
-                404 AS StatusCode,
-                N'User was not found.' AS Message;
+        /* Require an active user changing their own password,or an active administrator resetting another user's password. */
+		IF NOT EXISTS
+		(
+			SELECT 1
+			FROM dbo.PARKING_USER
+			WHERE UserID = @PerformedByUserID
+			  AND ActiveStatus = 1
+			  AND
+			  (
+				  UserID = @UserID
+				  OR UserRole = 'A'
+			  )
+		)
+		BEGIN
+			SET @ResultStatusCode = -1;
+			SET @Result = 'Operation is not authorized.';
 
-            RETURN;
-        END;
+			SELECT
+				403 AS StatusCode,
+				N'You are not authorized to change this password.' AS Message;
+
+			RETURN;
+		END;
 
         UPDATE dbo.PARKING_USER
         SET
@@ -584,6 +636,8 @@ BEGIN
     END;
 
     /* Invalid ActionType */
+	SET @ResultStatusCode = -1;
+	SET @Result = 'Invalid request.';
     SELECT
         400 AS StatusCode,
         N'Invalid ActionType.' AS Message;

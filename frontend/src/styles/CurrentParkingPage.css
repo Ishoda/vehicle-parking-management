@@ -1,0 +1,91 @@
+.current-parking-page {
+  flex: 1;
+  min-width: 0;
+  padding: 2rem;
+  color: #172b35;
+}
+
+.current-parking-page h1 {
+  margin-top: 0;
+}
+
+.current-parking-search {
+  margin: 1.5rem 0;
+}
+
+.current-parking-search label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.current-parking-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.current-parking-controls input {
+  flex: 1;
+  min-width: 12rem;
+  padding: 0.75rem;
+  border: 1px solid #cad5da;
+  border-radius: 8px;
+}
+
+.current-parking-controls button {
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 8px;
+  background: #111;
+  color: white;
+  cursor: pointer;
+}
+
+.current-parking-controls button:hover {
+  background: #087f8c;
+}
+
+.current-parking-controls button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.current-parking-error {
+  color: #ad2828;
+}
+
+.current-parking-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #dce5e9;
+  border-radius: 10px;
+  background: white;
+}
+
+.current-parking-page table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.current-parking-page th,
+.current-parking-page td {
+  padding: 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid #e5ecef;
+}
+
+.current-parking-page th {
+  background: #edf7f7;
+}
+
+.current-parking-caption {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .current-parking-page {
+    padding: 1rem;
+  }
+}

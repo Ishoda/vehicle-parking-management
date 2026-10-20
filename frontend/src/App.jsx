@@ -1,55 +1,57 @@
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Navigate, Route, Routes } from 'react-router-dom'
+
 import { restoreSession } from './store/slices/authSlice'
 import { ADMIN_ROLES, OPERATION_ROLES } from './constants/Permissions'
+import { RESOURCES } from './constants/Resources'
+
 import ProtectedRoute from './routes/ProtectedRoute'
+import DashboardLayout from './components/DashboardLayout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
-import AccessCheckPage from './pages/AccessCheckPage'
-import ForbiddenPage from './pages/ForbiddenPage'
-import UserManagementPage from './pages/UserManagementPage'
-import SpaceAvailabilityPage from './pages/SpaceAvailabilityPage'
-import VehicleTypePage from './pages/VehicleTypePage'
-import ParkingRatePage from './pages/ParkingRatePage'
+import MasterDataPage from './pages/MasterDataPage'
+import ResourcePage from './pages/ResourcePage'
+import CustomersPage from './pages/CustomersPage'
+import ParkingListPage from './pages/ParkingListPage'
 import VehicleEntryPage from './pages/VehicleEntryPage'
-import CurrentParkingPage from './pages/CurrentParkingPage'
-import './App.css'
+import VehicleExitPage from './pages/VehicleExitPage'
+import SpaceAvailabilityPage from './pages/SpaceAvailabilityPage'
+import MonthlyPaymentPage from './pages/MonthlyPaymentPage'
+import PaymentsPage from './pages/PaymentsPage'
+import ReportsPage from './pages/ReportsPage'
+import SettingsPage from './pages/SettingsPage'
+import NotFoundPage from './pages/NotFoundPage'
+import ForbiddenPage from './pages/ForbiddenPage'
 
 export default function App() {
   const dispatch = useDispatch()
-
-  const {
-    user,
-    loading,
-    error,
-    initialized,
-    sessionError,
-  } = useSelector((state) => state.auth)
+  const { user, initialized, loading, error } = useSelector(
+    (state) => state.auth,
+  )
 
   useEffect(() => {
-    dispatch(restoreSession())
+    const task = dispatch(restoreSession())
+    return () => task.abort()
   }, [dispatch])
 
   if (!initialized) {
     return (
-      <main className="auth-page">
-        <h1>Vehicle Parking Management</h1>
+      <main className="session-screen">
+        <span className="brand-mark">P</span>
+        <h1>Parkly</h1>
+        <p role={error ? 'alert' : 'status'}>
+          {error || 'Checking your session…'}
+        </p>
 
-        {sessionError ? (
-          <>
-            <p role="alert">{error}</p>
-
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => dispatch(restoreSession())}
-            >
-              Try again
-            </button>
-          </>
-        ) : (
-          <p role="status">Checking your session…</p>
+        {error && (
+          <button
+            className="primary"
+            disabled={loading}
+            onClick={() => dispatch(restoreSession())}
+          >
+            Try again
+          </button>
         )}
       </main>
     )
@@ -63,44 +65,65 @@ export default function App() {
       />
 
       <Route element={<ProtectedRoute allowedRoles={OPERATION_ROLES} />}>
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/vehicle-entry" element={<VehicleEntryPage />} />
-        <Route path="/space-availability" element={<SpaceAvailabilityPage />}/>
-        <Route path="/current-parking" element={<CurrentParkingPage />} />
-        <Route path="/forbidden" element={<ForbiddenPage />} />
+        <Route element={<DashboardLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="vehicle-entry" element={<VehicleEntryPage />} />
+          <Route path="vehicle-exit" element={<VehicleExitPage />} />
+          <Route
+            path="current-parking"
+            element={<ParkingListPage key="current" />}
+          />
+          <Route
+            path="space-availability"
+            element={<SpaceAvailabilityPage />}
+          />
+          <Route path="monthly-payments" element={<MonthlyPaymentPage />} />
+          <Route path="payments" element={<PaymentsPage />} />
 
-        <Route
-          path="/access/operations"
-          element={
-            <AccessCheckPage
-              key="operations"
-              title="Parking operations access"
-              endpoint="/Permissions/Operations"
+          <Route element={<ProtectedRoute allowedRoles={ADMIN_ROLES} />}>
+            <Route path="master-data" element={<MasterDataPage />} />
+            <Route
+              path="spaces"
+              element={
+                <ResourcePage key="spaces" config={RESOURCES.spaces} />
+              }
             />
-          }
-        />
-      </Route>
-
-      <Route element={<ProtectedRoute allowedRoles={ADMIN_ROLES} />}>
-        <Route path="/users" element={<UserManagementPage />} />
-
-        <Route path="/vehicle-types" element={<VehicleTypePage />} />
-
-        <Route path="/rates" element={<ParkingRatePage />} />
-
-        <Route
-          path="/access/admin"
-          element={
-            <AccessCheckPage
-              key="admin"
-              title="Administrator access"
-              endpoint="/Permissions/Admin"
+            <Route
+              path="vehicle-types"
+              element={
+                <ResourcePage key="types" config={RESOURCES.vehicleTypes} />
+              }
             />
-          }
-        />
-      </Route>
+            <Route
+              path="rates"
+              element={
+                <ResourcePage key="rates" config={RESOURCES.rates} />
+              }
+            />
+            <Route path="customers" element={<CustomersPage />} />
+            <Route
+              path="monthly-parking"
+              element={
+                <ResourcePage
+                  key="contracts"
+                  config={RESOURCES.monthlyContracts}
+                />
+              }
+            />
+            <Route
+              path="users"
+              element={
+                <ResourcePage key="users" config={RESOURCES.users} />
+              }
+            />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="forbidden" element={<ForbiddenPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Route>
     </Routes>
   )
 }

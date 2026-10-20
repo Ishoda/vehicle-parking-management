@@ -1,11 +1,11 @@
-import { Link } from 'react-router-dom'
+import ErrorPage from '../components/ErrorPage'
 
 export default function ForbiddenPage() {
   return (
-    <main className="auth-page">
-      <h1>Access denied</h1>
-      <p>You do not have permission to open this page.</p>
-      <p><Link to="/">Back to dashboard</Link></p>
-    </main>
+    <ErrorPage
+      code="403"
+      title="This space is restricted."
+      description="Your account doesn’t have permission to open this page. You can return to the dashboard to continue."
+    />
   )
 }

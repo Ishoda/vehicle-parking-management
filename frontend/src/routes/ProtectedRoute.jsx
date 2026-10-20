@@ -1,13 +1,10 @@
 import { useSelector } from 'react-redux'
 import { Navigate, Outlet } from 'react-router-dom'
+
 import { hasRole } from '../constants/Permissions'
 
 export default function ProtectedRoute({ allowedRoles }) {
-  const { user, initialized } = useSelector((state) => state.auth)
-
-  if (!initialized) {
-    return <p role="status">Checking your session…</p>
-  }
+  const user = useSelector((state) => state.auth.user)
 
   if (!user) {
     return <Navigate to="/login" replace />

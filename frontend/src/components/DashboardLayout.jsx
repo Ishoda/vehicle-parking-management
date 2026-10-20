@@ -1,116 +1,171 @@
+import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Settings } from 'lucide-react'
+
+import { PAGES, hasRole } from '../constants/Permissions'
 import { signOut } from '../store/slices/authSlice'
-import RoleGate from './RoleGate'
-import {
-  ADMIN_ROLES,
-  OPERATION_ROLES,
-  ROLES,
-} from '../constants/Permissions'
-import '../styles/DashboardPage.css'
+import { Icon, Notice } from './UI'
 
-export default function DashboardLayout({ children }) {
+export default function DashboardLayout() {
   const dispatch = useDispatch()
-  const { user, loading } = useSelector((state) => state.auth)
+  const { user, loading, error } = useSelector((state) => state.auth)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [online, setOnline] = useState(navigator.onLine)
 
-  if (!user) return null
+  useEffect(() => {
+    function updateConnection() {
+      setOnline(navigator.onLine)
+    }
+
+    window.addEventListener('online', updateConnection)
+    window.addEventListener('offline', updateConnection)
+
+    return () => {
+      window.removeEventListener('online', updateConnection)
+      window.removeEventListener('offline', updateConnection)
+    }
+  }, [])
 
   const fullName =
     [user.firstName, user.lastName].filter(Boolean).join(' ') ||
     user.username ||
     'Staff member'
 
-  const initials =
-    [user.firstName, user.lastName]
-      .filter(Boolean)
-      .map((name) => name.charAt(0))
-      .join('')
-      .slice(0, 2)
-      .toUpperCase() ||
-    fullName.charAt(0).toUpperCase()
+  const pages = PAGES.filter((page) => hasRole(user, page.roles))
 
-  const roleLabel = user.role === ROLES.ADMIN ? 'Admin' : 'Operator'
-
-  function navClass({ isActive }) {
-    return `dashboard-nav-link${isActive ? ' is-active' : ''}`
+  function closeMenu() {
+    setMenuOpen(false)
   }
 
   return (
-    <div className="parking-dashboard">
-      <aside className="dashboard-sidebar">
-        <Link to="/" className="dashboard-brand">
-          <span className="dashboard-brand-mark" aria-hidden="true">
+    <div className="app-shell">
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
+
+      {menuOpen && (
+        <button
+          type="button"
+          className="nav-overlay"
+          aria-label="Close navigation"
+          onClick={closeMenu}
+        />
+      )}
+
+      <aside
+        id="sidebar"
+        className={`sidebar ${menuOpen ? 'open' : ''}`}
+      >
+        <Link to="/" className="brand" onClick={closeMenu}>
+          <span className="brand-mark" aria-hidden="true">
             P
           </span>
-
           <span>
-            <strong>Parkly</strong>
-            <small>Staff workspace</small>
+            Parkly
+            <small>PARKING MANAGEMENT</small>
           </span>
         </Link>
 
-        <div className="dashboard-nav-group">
-          <p className="dashboard-nav-label">Workspace</p>
+        <p className="nav-label">YOUR WORKSPACE</p>
 
-          <nav className="dashboard-nav" aria-label="Main navigation">
-            <NavLink to="/" end className={navClass}>
-              <span aria-hidden="true">▦</span>
-              Overview
+        <nav aria-label="Main navigation">
+          {pages.map((page) => (
+            <NavLink
+              key={page.path}
+              to={page.path}
+              end={page.path === '/'}
+              onClick={closeMenu}
+            >
+              <Icon name={page.icon} size={19} />
+              <span>{page.title}</span>
             </NavLink>
+          ))}
+        </nav>
 
-            <RoleGate allowedRoles={OPERATION_ROLES}>
-              <NavLink to="/space-availability" className={navClass}>
-                <span aria-hidden="true">P</span>
-                Space availability
-              </NavLink>
-              <NavLink to="/current-parking" className={navClass}>
-                <span aria-hidden="true">V</span>
-                Current parking
-              </NavLink>
-              <NavLink to="/vehicle-entry" className={navClass}>
-                <span aria-hidden="true">E</span>
-                Vehicle entry
-              </NavLink>
-            </RoleGate>
-
-            <RoleGate allowedRoles={ADMIN_ROLES}>
-              <NavLink to="/users" className={navClass}>
-                <span aria-hidden="true">◎</span>
-                User management
-              </NavLink>
-
-              <NavLink to="/rates" className={navClass}>
-                <span aria-hidden="true">₹</span>
-                Parking rates
-              </NavLink>
-            </RoleGate>
-          </nav>
-        </div>
-
-        <div className="dashboard-sidebar-footer">
-          <div className="dashboard-profile">
-            <span className="dashboard-avatar" aria-hidden="true">
-              {initials}
+        <div className="sidebar-footer">
+          <div className="profile">
+            <span className="avatar">
+              {fullName.charAt(0).toUpperCase()}
             </span>
-
-            <div className="dashboard-profile-details">
+            <div>
               <strong>{fullName}</strong>
-              <span>{roleLabel} account</span>
+              <small>
+                {user.role === 'AD' ? 'Owner / Admin' : 'Parking Operator'}
+              </small>
             </div>
           </div>
 
-          <button
-            className="dashboard-logout"
-            type="button"
-            disabled={loading}
-            onClick={() => dispatch(signOut())}
-          >
-            {loading ? 'Logging out…' : 'Log out'}
-          </button>
+          <div className="sidebar-account-actions">
+            <button
+              type="button"
+              className="sidebar-account-action"
+              disabled={loading}
+              onClick={() => dispatch(signOut())}
+            >
+              <Icon name="exit" size={18} />
+              <span>{loading ? 'Signing out…' : 'Sign out'}</span>
+            </button>
+
+            {user.role === 'AD' && (
+              <NavLink
+                to="/settings"
+                className={({ isActive }) =>
+                  `sidebar-account-action ${isActive ? 'active' : ''}`
+                }
+                onClick={closeMenu}
+              >
+                <Settings size={18} aria-hidden="true" />
+                <span>Settings</span>
+              </NavLink>
+            )}
+          </div>
         </div>
       </aside>
 
-      {children}
+      <div className="workspace">
+        <header className="topbar">
+          <button
+            type="button"
+            className="menu-button secondary"
+            aria-label="Toggle navigation"
+            aria-expanded={menuOpen}
+            aria-controls="sidebar"
+            onClick={() => setMenuOpen((current) => !current)}
+          >
+            <Icon name="menu" />
+          </button>
+
+          <span className="topbar-title">Parking, made simple.</span>
+
+          <div className="topbar-right">
+            <span className={`connection ${online ? '' : 'offline'}`}>
+              {online ? 'Online' : 'Offline'}
+            </span>
+            <span className="role-pill">
+              {user.role === 'AD' ? 'Admin' : 'Operator'}
+            </span>
+          </div>
+        </header>
+
+        <main id="main" className="main-content">
+          <Notice error={error} />
+
+          {!online && (
+            <div className="notice warning" role="status">
+              You are offline. Displayed information may be outdated.
+              Entries, exits and payments require a connection.
+            </div>
+          )}
+
+          <Outlet />
+        </main>
+
+        <footer className="app-footer">
+          Parkly · Vehicle Parking Management
+          <span>Staff workspace</span>
+        </footer>
+      </div>
     </div>
   )
 }

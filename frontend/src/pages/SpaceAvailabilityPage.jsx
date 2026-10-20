@@ -1,279 +1,247 @@
 import { useEffect, useState } from 'react'
-import { useDispatch } from 'react-redux'
-import {
-  LayoutGrid,
-  CircleCheck,
-  Car,
-  Ban,
-  RefreshCw,
-} from 'lucide-react'
-import { getSpaceAvailability } from '../services/SpaceAvailabilityService'
-import { sessionExpired } from '../store/slices/authSlice'
-import DashboardLayout from '../components/DashboardLayout'
-import '../styles/SpaceAvailability.css'
+import { Car, ParkingSquare, RefreshCw } from 'lucide-react'
 
-const emptyCounts = {
-  total: 0,
-  available: 0,
-  occupied: 0,
-  blocked: 0,
+import { API } from '../constants/Api'
+import { Notice, PageHeader } from '../components/UI'
+import useRequest from '../utils/useRequest'
+import { rows } from '../utils/format'
+
+const statuses = {
+  AV: 'available',
+  AVAILABLE: 'available',
+  OC: 'occupied',
+  OCCUPIED: 'occupied',
+  RE: 'reserved',
+  RESERVED: 'reserved',
+  B: 'blocked',
+  BLOCKED: 'blocked',
 }
 
-const availabilityIcons = {
-  total: LayoutGrid,
-  available: CircleCheck,
-  occupied: Car,
-  blocked: Ban,
+const statusLabels = {
+  available: 'Available',
+  occupied: 'Occupied',
+  reserved: 'Reserved',
+  blocked: 'Blocked',
+  unknown: 'Unknown',
 }
 
-function AvailabilityIcon({ type }) {
-  const Icon = availabilityIcons[type]
-
-  return Icon ? <Icon size={23} aria-hidden="true" /> : null
+function getStatus(value) {
+  const code = String(value || '').trim().toUpperCase()
+  return statuses[code] || 'unknown'
 }
 
 export default function SpaceAvailabilityPage() {
-  const dispatch = useDispatch()
-
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
+  const [vehicleType, setVehicleType] = useState('')
+  const { data, loading, error, load } = useRequest('space-availability')
 
   useEffect(() => {
-    let active = true
-    let timer
-    let controller
+    const task = load(API.availability)
+    return () => task.abort()
+  }, [load])
 
-    async function load() {
-      controller = new AbortController()
-      setLoading(true)
+  const spaces = rows(data?.spaces ?? data)
+  const vehicleTypes = [
+    ...new Set(spaces.map((space) => space.vehicleTypeName).filter(Boolean)),
+  ].sort()
 
-      let continueRefreshing = true
+  function getCount(name) {
+    const suppliedCount = data?.counts?.[name]
 
-      try {
-        const result = await getSpaceAvailability(controller.signal)
-
-        if (active) {
-          setData(result)
-          setError('')
-        }
-      } catch (requestError) {
-        if (!active || controller.signal.aborted) return
-
-        const status = requestError.response?.status
-
-        if (status === 401) {
-          continueRefreshing = false
-          dispatch(sessionExpired())
-        } else if (status === 403) {
-          continueRefreshing = false
-          setError('You do not have permission to view parking availability.')
-        } else {
-          setError(
-            requestError.response?.data?.message ||
-              'Could not refresh availability. Check your connection and try again.',
-          )
-        }
-      } finally {
-        if (active) {
-          setLoading(false)
-
-          if (continueRefreshing) {
-            timer = window.setTimeout(load, 15000)
-          }
-        }
-      }
+    if (
+      suppliedCount !== null &&
+      suppliedCount !== undefined &&
+      suppliedCount !== ''
+    ) {
+      const count = Number(suppliedCount)
+      if (Number.isFinite(count)) return count
     }
 
-    load()
+    if (name === 'total') return spaces.length
 
-    return () => {
-      active = false
-      window.clearTimeout(timer)
-      controller?.abort()
-    }
-  }, [dispatch, refreshKey])
+    return spaces.filter(
+      (space) => getStatus(space.spaceStatus) === name,
+    ).length
+  }
 
-  const spaces = data?.spaces || []
-  const counts = data?.counts || emptyCounts
+  const counters = [
+    { name: 'total', label: 'Total' },
+    { name: 'available', label: 'Available' },
+    { name: 'occupied', label: 'Occupied' },
+    { name: 'reserved', label: 'Reserved' },
+    { name: 'blocked', label: 'Blocked' },
+  ]
 
-    return (
-    <DashboardLayout>
-      <main className="dashboard-main space-availability">
-        <header className="availability-header">
-          <div>
-            <p className="dashboard-eyebrow">
-              Workspace / Space availability
-            </p>
-            <h1>Parking space availability</h1>
-            <p className="availability-description">
-              Monitor active spaces and their current status.
-            </p>
-          </div>
+  const searchText = search.trim().toLowerCase()
+  const filteredSpaces = spaces.filter((space) => {
+    const matchesSearch = [
+      space.spaceCode,
+      space.spaceName,
+      space.vehicleTypeName,
+    ].some((value) =>
+      String(value || '').toLowerCase().includes(searchText),
+    )
 
-          <button
-            className="availability-refresh"
-            type="button"
-            disabled={loading}
-            onClick={() => setRefreshKey((previous) => previous + 1)}
+    const matchesStatus =
+      !status || getStatus(space.spaceStatus) === status
+    const matchesVehicleType =
+      !vehicleType || space.vehicleTypeName === vehicleType
+
+    return matchesSearch && matchesStatus && matchesVehicleType
+  })
+
+  return (
+    <div className="availability-page">
+      <PageHeader title="Space availability">
+        <button
+          type="button"
+          className="secondary"
+          disabled={loading}
+          onClick={() => load(API.availability)}
+        >
+          <RefreshCw size={16} />
+          Refresh
+        </button>
+      </PageHeader>
+
+      <Notice error={error} />
+
+      <section
+        className="availability-counters"
+        aria-label="Parking space totals"
+        aria-busy={loading}
+      >
+        {counters.map((counter) => (
+          <div
+            key={counter.name}
+            className={`availability-counter counter-${counter.name}`}
           >
-            <RefreshCw size={18} aria-hidden="true" />
-            {loading ? 'Refreshing…' : 'Refresh'}
-          </button>
-        </header>
+            <span>{counter.label}</span>
+            <strong>
+              {loading ? '…' : error ? '—' : getCount(counter.name)}
+            </strong>
+          </div>
+        ))}
+      </section>
 
-        <div className="availability-refresh-info">
-          <span>Automatically refreshes every 15 seconds</span>
-
-          {data && (
-            <span className="availability-updated">
-              Last successful refresh:{' '}
-              {new Date(data.fetchedAtUtc).toLocaleString()}
-            </span>
-          )}
+      <section className="parking-board">
+        <div className="parking-board-heading">
+          <div className="parking-legend">
+            {Object.entries(statusLabels)
+              .filter(([key]) => key !== 'unknown')
+              .map(([key, label]) => (
+                <span key={key}>
+                  <i
+                    className={`parking-dot dot-${key}`}
+                    aria-hidden="true"
+                  />
+                  {label}
+                </span>
+              ))}
+          </div>
         </div>
 
-        {error && (
-          <div role="alert" className="availability-error">
-            <p>{error}</p>
-            {data && (
-              <p>
-                These records are from the last successful refresh
-                and may be out of date.
-              </p>
-            )}
-          </div>
-        )}
+        <div className="parking-filters">
+          <input
+            type="search"
+            aria-label="Search parking spaces"
+            placeholder="Search space code or name..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
 
-        {!data && loading && (
-          <p className="availability-loading" role="status">
+          <select
+            aria-label="Filter by vehicle type"
+            value={vehicleType}
+            onChange={(event) => setVehicleType(event.target.value)}
+          >
+            <option value="">All vehicle types</option>
+            {vehicleTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+
+          <select
+            aria-label="Filter by space status"
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+          >
+            <option value="">All statuses</option>
+            {Object.entries(statusLabels).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {loading ? (
+          <div className="parking-board-empty" role="status">
             Loading parking spaces…
-          </p>
-        )}
+          </div>
+        ) : error ? (
+          <div className="parking-board-empty">
+            Parking spaces could not be loaded. Use Refresh to try again.
+          </div>
+        ) : filteredSpaces.length === 0 ? (
+          <div className="parking-board-empty">
+            No parking spaces found.
+          </div>
+        ) : (
+          <div className="parking-space-grid">
+            {filteredSpaces.map((space) => {
+              const spaceStatus = getStatus(space.spaceStatus)
 
-        {data && (
-          <>
-            <section
-              className="availability-counts"
-              aria-label="Parking space counts"
-            >
-              {[
-                {
-                  type: 'total',
-                  label: 'Total spaces',
-                  value: counts.total,
-                  description: 'Active parking spaces',
-                },
-                {
-                  type: 'available',
-                  label: 'Available',
-                  value: counts.available,
-                  description: 'Ready for vehicle entry',
-                },
-                {
-                  type: 'occupied',
-                  label: 'Occupied',
-                  value: counts.occupied,
-                  description: 'Currently in use',
-                },
-                {
-                  type: 'blocked',
-                  label: 'Blocked',
-                  value: counts.blocked,
-                  description: 'Unavailable for parking',
-                },
-              ].map((card) => (
-                <div
-                  key={card.type}
-                  className={`availability-stat stat-${card.type}`}
+              return (
+                <article
+                  key={space.spaceID}
+                  className={`parking-bay bay-${spaceStatus}`}
                 >
-                  <div className="availability-stat-top">
-                    <span className="availability-stat-label">
-                      {card.label}
-                    </span>
-
-                    <span className="availability-stat-icon">
-                      <AvailabilityIcon type={card.type} />
-                    </span>
+                  <div className="parking-bay-top">
+                    <strong>{space.spaceCode || space.spaceID}</strong>
+                    <span
+                      className={`parking-dot dot-${spaceStatus}`}
+                      aria-hidden="true"
+                    />
                   </div>
 
-                  <strong>{card.value}</strong>
-                  <span className="availability-stat-description">
-                    {card.description}
-                  </span>
-                </div>
-              ))}
-            </section>
-
-            <section
-              className="availability-records"
-              aria-labelledby="spaces-table-title"
-            >
-              <div className="availability-table-heading">
-                <div>
-                  <h2 id="spaces-table-title">Parking spaces</h2>
-                  <p>Space details and current availability.</p>
-                </div>
-
-                <span className="availability-record-count">
-                  {spaces.length} records
-                </span>
-              </div>
-
-              <div
-                className="availability-table-container"
-                tabIndex={0}
-                role="region"
-                aria-label="Parking spaces table"
-              >
-                <table>
-                  <thead>
-                    <tr>
-                      <th scope="col">Space code</th>
-                      <th scope="col">Space name</th>
-                      <th scope="col">Vehicle type</th>
-                      <th scope="col">Status</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {spaces.map((space) => (
-                      <tr key={space.spaceId}>
-                        <td>{space.spaceCode}</td>
-                        <td>{space.spaceName || '—'}</td>
-                        <td>{space.vehicleTypeName}</td>
-                        <td>
-                          <span
-                            className={
-                              `space-status status-${space.spaceStatus.toLowerCase()}`
-                            }
-                          >
-                            {space.spaceStatus}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-
-                    {spaces.length === 0 && (
-                      <tr>
-                        <td colSpan={4}>
-                          No active parking spaces found.
-                        </td>
-                      </tr>
+                  <div className="parking-bay-icon">
+                    {spaceStatus === 'occupied' ? (
+                      <Car
+                        size={46}
+                        strokeWidth={1.6}
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <ParkingSquare
+                        size={42}
+                        strokeWidth={1.5}
+                        aria-hidden="true"
+                      />
                     )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </>
+                  </div>
+
+                  <span className="parking-bay-type">
+                    {space.vehicleTypeName || 'Vehicle type unavailable'}
+                  </span>
+                  <span className="parking-bay-status">
+                    {statusLabels[spaceStatus]}
+                  </span>
+
+                  {spaceStatus === 'blocked' && space.blockReason && (
+                    <p className="parking-bay-reason">
+                      {space.blockReason}
+                    </p>
+                  )}
+                </article>
+              )
+            })}
+          </div>
         )}
-
-        <footer className="dashboard-footer">
-          Vehicle Parking Management · Staff workspace
-        </footer>
-      </main>
-    </DashboardLayout>
+      </section>
+    </div>
   )
-
 }

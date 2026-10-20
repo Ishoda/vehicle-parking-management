@@ -1,46 +1,65 @@
 # Git Contribution Rules
 
-## 1. Branch Rules
+## Branches
 
 - `main` is the stable branch.
-- Do not directly push to `main`.
-- Create a separate branch for each feature or task.
-- Use meaningful branch names.
+- Do not push directly to `main`.
+- Create a separate branch for each feature or fix.
+- Open a pull request into the team's agreed integration branch.
 
-Examples:
+Example branch names:
+
 - `feature/monthly-contract`
 - `feature/monthly-payment`
-- `feature/parking-customer`
 - `fix/space-availability`
+- `chore/frontend-cleanup`
 
-## 2. Commit Rules
+## Commits
 
-- Make small and meaningful commits.
-- Write a clear commit message.
-- Do not use messages such as `update`, `changes`, or `test`.
+Keep commits focused and use clear messages.
 
 Examples:
 
-- `Add monthly contract stored procedure`
-- `Add monthly customer API`
-- `Fix parking space availability`
-- `Update monthly payment validation`
+- `Add monthly customer form`
+- `Fix parking space availability filter`
+- `Consolidate frontend styles`
+- `Add offline fallback page`
 
-## 3. Before Pushing
+Avoid vague messages such as `update`, `changes` or `test`.
 
-Before pushing your changes:
+## Before opening a pull request
 
-1. Pull the latest changes.
-2. Check for conflicts.
-3. Test your changes.
-4. Make sure unnecessary files are not included.
-5. Commit and push.
+1. Check the current branch and working-tree changes.
+2. Review the diff and exclude unrelated files.
+3. Run the frontend checks from the frontend directory.
+4. Check the affected screens in the browser.
+5. Commit and push the task branch.
+6. Describe the change, validation and any incomplete integration.
 
-Example:
-
-```bash
-git pull origin main
+```powershell
 git status
-git add .
-git commit -m "Add monthly contract procedure"
-git push origin feature/monthly-contract
+git diff --check
+npm run lint
+npm run build
+```
+
+Do not commit `node_modules`, `dist`, local environment files,
+credentials or editor-generated files.
+
+## Frontend conventions
+
+- Use React with JavaScript.
+- Keep code simple and readable.
+- Reuse shared components and the existing request layer.
+- Keep API paths in `src/constants/Api.js`.
+- Keep role definitions in `src/constants/Permissions.js`.
+- Follow the existing red, black and white application theme.
+- Preserve existing behaviour during formatting-only changes.
+
+## Validation
+
+Lint and build checks verify code quality and compilation.
+They do not replace browser checks or backend integration testing.
+
+Document unavailable backend endpoints and untested transaction flows
+in the pull request.

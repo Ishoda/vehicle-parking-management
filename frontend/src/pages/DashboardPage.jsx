@@ -1,234 +1,180 @@
+import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
-import { Link } from 'react-router-dom'
-import DashboardLayout from '../components/DashboardLayout'
-import RoleGate from '../components/RoleGate'
-import {
-  ADMIN_ROLES,
-  FEATURE_PERMISSIONS,
-  OPERATION_ROLES,
-  ROLES,
-  hasRole,
-} from '../constants/Permissions'
-import '../styles/DashboardPage.css'
+
+import { API } from '../constants/Api'
+import { Icon, Notice, PageHeader } from '../components/UI'
+import DashboardCharts from '../components/DashboardCharts'
+import useRequest from '../utils/useRequest'
+import { money } from '../utils/format'
 
 export default function DashboardPage() {
-  const { user, error } = useSelector((state) => state.auth)
+  const user = useSelector((state) => state.auth.user)
+  const { data, loading, error, load } = useRequest('dashboard')
+  const [chartRefresh, setChartRefresh] = useState(0)
+  const isAdmin = user.role === 'AD'
+  const endpoint = isAdmin ? API.dashboard : API.availability
 
-  if (!user) return null
+  useEffect(() => {
+    const task = load(endpoint)
+    return () => task.abort()
+  }, [load, endpoint])
 
-  const features = FEATURE_PERMISSIONS.filter(
-    (feature) => hasRole(user, feature.roles),
-  )
+  function refreshDashboard() {
+    load(endpoint)
+    setChartRefresh((current) => current + 1)
+  }
 
-  const fullName =
-    [user.firstName, user.lastName].filter(Boolean).join(' ') ||
-    user.username ||
-    'Staff member'
+  const statistics = isAdmin
+    ? [
+        {
+          title: 'Total spaces',
+          value: data?.totalSpaces,
+          icon: 'space',
+          colour: 'blue',
+        },
+        {
+          title: 'Occupied spaces',
+          value: data?.occupiedSpaces,
+          icon: 'vehicle',
+          colour: 'red',
+        },
+        {
+          title: 'Available spaces',
+          value: data?.availableSpaces,
+          icon: 'space',
+          colour: 'green',
+        },
+        {
+          title: 'Blocked spaces',
+          value: data?.blockedSpaces,
+          icon: 'space',
+          colour: 'grey',
+        },
+        {
+          title: "Today's Daily Entries",
+          value: data?.todayDailyVehicles,
+          icon: 'entry',
+          colour: 'black',
+        },
+        {
+          title: 'Currently parked',
+          value: data?.currentlyParkedCount,
+          icon: 'vehicle',
+          colour: 'black',
+        },
+        {
+          title: "Today's daily revenue",
+          value: money(data?.todayDailyRevenue),
+          icon: 'rate',
+          colour: 'black',
+          currency: true,
+        },
+        {
+          title: 'Monthly revenue',
+          value: money(data?.monthlyRevenue),
+          icon: 'calendar',
+          colour: 'black',
+          currency: true,
+        },
+      ]
+    : [
+        {
+          title: 'Total spaces',
+          value: data?.counts?.total,
+          icon: 'space',
+          colour: 'blue',
+        },
+        {
+          title: 'Occupied spaces',
+          value: data?.counts?.occupied,
+          icon: 'vehicle',
+          colour: 'red',
+        },
+        {
+          title: 'Available spaces',
+          value: data?.counts?.available,
+          icon: 'space',
+          colour: 'green',
+        },
+        {
+          title: 'Blocked spaces',
+          value: data?.counts?.blocked,
+          icon: 'space',
+          colour: 'grey',
+        },
+      ]
 
-  const roleLabel = user.role === ROLES.ADMIN ? 'Admin' : 'Operator'
+  const spaceCounts = isAdmin
+    ? {
+        total: data?.totalSpaces,
+        occupied: data?.occupiedSpaces,
+        available: data?.availableSpaces,
+        blocked: data?.blockedSpaces,
+      }
+    : data?.counts
 
   return (
-    <DashboardLayout>
-      <main className="dashboard-main">
-        <header className="dashboard-header">
-          <div>
-            <p className="dashboard-eyebrow">Workspace / Overview</p>
-            <h1>Dashboard</h1>
-          </div>
-
-          <span className="dashboard-role-badge">{roleLabel}</span>
-        </header>
-
-        {error && (
-          <p className="dashboard-error" role="alert">
-            {error}
-          </p>
-        )}
-
-        <section
-          className="dashboard-welcome"
-          aria-labelledby="dashboard-welcome-title"
+    <div className="dashboard-page">
+      <PageHeader title="Dashboard">
+        <button
+          className="secondary"
+          disabled={loading}
+          onClick={refreshDashboard}
         >
-          <div>
-            <p className="dashboard-eyebrow">Vehicle Parking Management</p>
+          <Icon name="refresh" size={16} />
+          Refresh
+        </button>
+      </PageHeader>
 
-            <h2 id="dashboard-welcome-title">
-              Welcome, {fullName}.
-            </h2>
+      <section className="welcome-banner">
+        <div>
+          <span className="story-tag">YOUR PARKING WORKSPACE</span>
+          <h2>
+            Welcome back, {user.firstName || user.username}.
+          </h2>
+        </div>
+      </section>
 
-            <p>
-              Access your parking tools and manage your daily work
-              from one place.
-            </p>
-          </div>
+      <Notice error={error} />
 
-          <div className="dashboard-access-summary">
-            <strong>{features.length}</strong>
-            <span>Permitted features</span>
-          </div>
-        </section>
-
-        <section
-          className="dashboard-section"
-          aria-labelledby="dashboard-actions-title"
-        >
-          <div className="dashboard-section-heading">
-            <div>
-              <h2 id="dashboard-actions-title">Quick access</h2>
-              <p>Open the tools available to your account.</p>
-            </div>
-          </div>
-
-          <div className="dashboard-action-grid">
-            <RoleGate allowedRoles={OPERATION_ROLES}>
-              <Link
-                to="/space-availability"
-                className="dashboard-action-card"
-              >
-                <span
-                  className="dashboard-action-icon"
-                  aria-hidden="true"
-                >
-                  P
-                </span>
-
-                <h3>Space availability</h3>
-                <p>View parking spaces and their current availability.</p>
-
-                <span className="dashboard-action-label">
-                  View spaces <span aria-hidden="true">→</span>
-                </span>
-              </Link>
-            </RoleGate>
-
-            <RoleGate allowedRoles={ADMIN_ROLES}>
-              <Link to="/users" className="dashboard-action-card">
-                <span
-                  className="dashboard-action-icon"
-                  aria-hidden="true"
-                >
-                  ◎
-                </span>
-
-                <h3>User management</h3>
-                <p>Manage staff accounts and their access to the system.</p>
-
-                <span className="dashboard-action-label">
-                  Manage users <span aria-hidden="true">→</span>
-                </span>
-              </Link>
-
-              <Link
-                to="/vehicle-types"
-                className="dashboard-action-card"
-              >
-                <span
-                  className="dashboard-action-icon"
-                  aria-hidden="true"
-                >
-                  V
-                </span>
-
-                <h3>Vehicle types</h3>
-                <p>Manage vehicle types used for parking spaces and rates.</p>
-
-                <span className="dashboard-action-label">
-                  Manage vehicle types <span aria-hidden="true">→</span>
-                </span>
-              </Link>
-
-              <Link to="/rates" className="dashboard-action-card">
-                <span
-                  className="dashboard-action-icon"
-                  aria-hidden="true"
-                >
-                  R
-                </span>
-
-                <h3>Parking rates</h3>
-                <p>Create and update hourly and daily parking rates.</p>
-
-                <span className="dashboard-action-label">
-                  Manage rates <span aria-hidden="true">→</span>
-                </span>
-              </Link>
-            </RoleGate>
-          </div>
-        </section>
-
-        <section
-          className="dashboard-panel"
-          aria-labelledby="dashboard-features-title"
-        >
-          <div className="dashboard-section-heading">
-            <div>
-              <h2 id="dashboard-features-title">
-                Your permitted features
-              </h2>
-
-              <p>Features assigned to your current role.</p>
-            </div>
-
-            <span className="dashboard-count">{features.length}</span>
-          </div>
-
-          {features.length > 0 ? (
-            <ul className="dashboard-feature-list">
-              {features.map((feature) => (
-                <li key={feature.id}>
-                  <span
-                    className="dashboard-feature-check"
-                    aria-hidden="true"
-                  >
-                    ✓
-                  </span>
-
-                  <span>{feature.label}</span>
-
-                  <span className="dashboard-feature-status">
-                    Allowed
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="dashboard-empty">
-              No features are currently assigned to your account.
-            </p>
-          )}
-        </section>
-
-        <section
-          className="dashboard-access-panel"
-          aria-labelledby="dashboard-access-title"
-        >
-          <div>
-            <h2 id="dashboard-access-title">Access verification</h2>
-            <p>Check access to your role’s protected pages.</p>
-          </div>
-
-          <nav
-            className="dashboard-access-links"
-            aria-label="Permission checks"
+      <section
+        className="summary-grid"
+        aria-label="Parking summary"
+        aria-busy={loading}
+      >
+        {statistics.map((item) => (
+          <article
+            key={item.title}
+            className={`summary-card summary-${item.colour}`}
           >
-            <RoleGate allowedRoles={ADMIN_ROLES}>
-              <Link to="/access/admin">
-                Administrator access →
-              </Link>
-            </RoleGate>
+            <span className="summary-watermark" aria-hidden="true">
+              <Icon name={item.icon} size={96} />
+            </span>
+            <span className="summary-title">{item.title}</span>
+            <strong
+              className={`summary-value ${
+                item.currency ? 'summary-currency' : ''
+              }`}
+            >
+              {loading ? '…' : error ? '—' : item.value ?? '—'}
+            </strong>
+          </article>
+        ))}
+      </section>
 
-            <RoleGate allowedRoles={OPERATION_ROLES}>
-              <Link to="/access/operations">
-                Operations access →
-              </Link>
-            </RoleGate>
-          </nav>
-        </section>
+      {isAdmin && data?.monthlyRevenuePeriod && (
+        <p className="dashboard-period">
+          Monthly revenue period: {data.monthlyRevenuePeriod}
+        </p>
+      )}
 
-        <footer className="dashboard-footer">
-          Vehicle Parking Management · Staff workspace
-        </footer>
-      </main>
-    </DashboardLayout>
+      <DashboardCharts
+        counts={spaceCounts}
+        loading={loading}
+        error={error}
+        isAdmin={isAdmin}
+        refreshKey={chartRefresh}
+      />
+    </div>
   )
 }

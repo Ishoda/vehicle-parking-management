@@ -1,44 +1,62 @@
-import {
-  createAsyncThunk,
-  createSlice,
-  isAnyOf,
-} from '@reduxjs/toolkit'
-import * as authService from '../../services/AuthService'
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 
-export const signIn = createAsyncThunk(
-  'auth/signIn',
-  async (credentials, { rejectWithValue }) => {
-    try {
-      return await authService.login(credentials)
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.message ||
-          'Could not sign in. Please try again.',
-      )
-    }
-  },
-)
+import { API } from '../../constants/Api'
+import { getData, saveData } from '../../services/ParkingService'
+import { getErrorMessage } from '../../services/apiClient'
+
+function normalizeUser(data) {
+  const user = data?.user || data
+  const role = String(user?.role ?? user?.userRole ?? '')
+    .trim()
+    .toUpperCase()
+
+  if (!user || !['AD', 'OP'].includes(role)) {
+    throw new Error('The backend did not return a supported user role.')
+  }
+
+  return { ...user, role }
+}
+
+function authError(error) {
+  if (error.response) {
+    return getErrorMessage(error)
+  }
+
+  if (error.isAxiosError) {
+    return (
+      'Could not connect to the server. ' +
+      'Check your connection and try again.'
+    )
+  }
+
+  return error.message || 'Could not complete authentication.'
+}
 
 export const restoreSession = createAsyncThunk(
   'auth/restoreSession',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, signal }) => {
     try {
-      return await authService.getCurrentUser()
+      const data = await getData(API.currentUser, undefined, signal)
+      return normalizeUser(data)
     } catch (error) {
       if (error.response?.status === 401) {
         return null
       }
 
-      return rejectWithValue(
-        'Could not check your session. Check the backend and try again.',
-      )
+      return rejectWithValue(authError(error))
     }
   },
-  {
-    condition: (_, { getState }) => {
-      const { loading, initialized } = getState().auth
-      return !loading && !initialized
-    },
+)
+
+export const signIn = createAsyncThunk(
+  'auth/signIn',
+  async (credentials, { rejectWithValue }) => {
+    try {
+      const data = await saveData(API.login, credentials)
+      return normalizeUser(data)
+    } catch (error) {
+      return rejectWithValue(authError(error))
+    }
   },
 )
 
@@ -46,92 +64,72 @@ export const signOut = createAsyncThunk(
   'auth/signOut',
   async (_, { rejectWithValue }) => {
     try {
-      await authService.logout()
+      await saveData(API.logout)
       return null
     } catch (error) {
-      // A 401 means the session has already expired.
       if (error.response?.status === 401) {
         return null
       }
 
-      return rejectWithValue(
-        'Could not log out. Please try again.',
-      )
+      return rejectWithValue(authError(error))
     }
   },
 )
 
-const initialState = {
-  user: null,
-  loading: false,
-  error: null,
-  initialized: false,
-  sessionError: false,
-}
-
 const authSlice = createSlice({
   name: 'auth',
-  initialState,
+  initialState: {
+    user: null,
+    initialized: false,
+    loading: false,
+    error: '',
+    requestId: null,
+  },
+
   reducers: {
-    sessionExpired: (state) => {
-    state.user = null
-    state.loading = false
-    state.initialized = true
-    state.sessionError = false
-    state.error = 'Your session has expired. Please log in again.'
+    sessionExpired(state) {
+      state.user = null
+      state.initialized = true
+      state.loading = false
+      state.requestId = null
+      state.error = 'Your session has expired. Please sign in again.'
     },
   },
+
   extraReducers: (builder) => {
-    builder
-      .addCase(restoreSession.fulfilled, (state, action) => {
-        state.user = action.payload
+    for (const action of [restoreSession, signIn, signOut]) {
+      builder.addCase(action.pending, (state, event) => {
+        state.loading = true
+        state.error = ''
+        state.requestId = event.meta.requestId
+      })
+
+      builder.addCase(action.fulfilled, (state, event) => {
+        if (state.requestId !== event.meta.requestId) {
+          return
+        }
+
+        state.user = event.payload
         state.loading = false
         state.initialized = true
-        state.sessionError = false
-        state.error = null
+        state.error = ''
+        state.requestId = null
       })
-      .addCase(restoreSession.rejected, (state, action) => {
+
+      builder.addCase(action.rejected, (state, event) => {
+        if (state.requestId !== event.meta.requestId) {
+          return
+        }
+
         state.loading = false
-        state.initialized = false
-        state.sessionError = true
-        state.error = action.payload || 'Could not check your session.'
+        state.requestId = null
+        state.error = event.meta.aborted
+          ? ''
+          : event.payload || 'Could not complete authentication.'
       })
-      .addCase(signIn.fulfilled, (state, action) => {
-        state.user = action.payload
-        state.loading = false
-        state.initialized = true
-        state.sessionError = false
-        state.error = null
-      })
-      .addCase(signIn.rejected, (state, action) => {
-        state.user = null
-        state.loading = false
-        state.error = action.payload || 'Could not sign in.'
-      })
-      .addCase(signOut.fulfilled, (state) => {
-        state.user = null
-        state.loading = false
-        state.initialized = true
-        state.error = null
-      })
-      .addCase(signOut.rejected, (state, action) => {
-        state.loading = false
-        state.error = action.payload || 'Could not log out.'
-      })
-      .addMatcher(
-        isAnyOf(
-          restoreSession.pending,
-          signIn.pending,
-          signOut.pending,
-        ),
-        (state) => {
-          state.loading = true
-          state.error = null
-          state.sessionError = false
-        },
-      )
+    }
   },
 })
 
-export default authSlice.reducer
 export const { sessionExpired } = authSlice.actions
+export default authSlice.reducer

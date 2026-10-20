@@ -1,70 +1,104 @@
 export const ROLES = {
-  ADMIN: 'A',
-  OPERATOR: 'O',
+  ADMIN: 'AD',
+  OPERATOR: 'OP',
 }
 
 export const ADMIN_ROLES = [ROLES.ADMIN]
+export const OPERATION_ROLES = [ROLES.ADMIN, ROLES.OPERATOR]
 
-export const OPERATION_ROLES = [
-  ROLES.ADMIN,
-  ROLES.OPERATOR,
+export const MASTER_DATA_PAGES = [
+  {
+    path: '/spaces',
+    title: 'Parking spaces',
+    icon: 'space',
+    roles: ADMIN_ROLES,
+  },
+  {
+    path: '/vehicle-types',
+    title: 'Vehicle types',
+    icon: 'vehicle',
+    roles: ADMIN_ROLES,
+  },
+  {
+    path: '/rates',
+    title: 'Parking rates',
+    icon: 'rate',
+    roles: ADMIN_ROLES,
+  },
+  {
+    path: '/customers',
+    title: 'Customers',
+    icon: 'customer',
+    roles: ADMIN_ROLES,
+  },
+  {
+    path: '/users',
+    title: 'User management',
+    icon: 'users',
+    roles: ADMIN_ROLES,
+  },
+  {
+    path: '/monthly-parking',
+    title: 'Monthly parking',
+    icon: 'calendar',
+    roles: ADMIN_ROLES,
+  },
 ]
 
-export const FEATURE_PERMISSIONS = [
+export const PAGES = [
   {
-    id: 'spaces',
-    label: 'Manage spaces',
-    roles: ADMIN_ROLES,
-  },
-  {
-    id: 'rates',
-    label: 'Manage rates',
-    roles: ADMIN_ROLES,
-  },
-  {
-    id: 'customers',
-    label: 'Manage customers',
-    roles: ADMIN_ROLES,
-  },
-  {
-    id: 'monthly-parking',
-    label: 'Manage monthly parking',
-    roles: ADMIN_ROLES,
-  },
-  {
-    id: 'reports',
-    label: 'Reports',
-    roles: ADMIN_ROLES,
-  },
-  {
-    id: 'users',
-    label: 'Manage users',
-    roles: ADMIN_ROLES,
-  },
-  {
-    id: 'entries',
-    label: 'Vehicle entries',
+    path: '/',
+    title: 'Dashboard',
+    icon: 'dashboard',
     roles: OPERATION_ROLES,
   },
   {
-    id: 'exits',
-    label: 'Vehicle exits',
+    path: '/master-data',
+    title: 'Master data',
+    icon: 'grid',
+    roles: ADMIN_ROLES,
+  },
+  {
+    path: '/vehicle-entry',
+    title: 'Vehicle entry',
+    icon: 'entry',
     roles: OPERATION_ROLES,
   },
   {
-    id: 'payments',
-    label: 'Payments',
+    path: '/vehicle-exit',
+    title: 'Vehicle exit',
+    icon: 'exit',
     roles: OPERATION_ROLES,
   },
   {
-    id: 'current-parking',
-    label: 'Current parking',
+    path: '/current-parking',
+    title: 'Current parking',
+    icon: 'vehicle',
     roles: OPERATION_ROLES,
   },
   {
-    id: 'receipts',
-    label: 'Receipts',
+    path: '/space-availability',
+    title: 'Space availability',
+    icon: 'space',
     roles: OPERATION_ROLES,
+  },
+  {
+    path: '/monthly-payments',
+    title: 'Monthly payments',
+    icon: 'payment',
+    roles: OPERATION_ROLES,
+  },
+  {
+    path: '/payments',
+    title: 'Payments & receipts',
+    icon: 'receipt',
+    roles: OPERATION_ROLES,
+  },
+  {
+    path: '/reports',
+    title: 'Reports',
+    icon: 'report',
+    roles: ADMIN_ROLES,
   },
 ]
 

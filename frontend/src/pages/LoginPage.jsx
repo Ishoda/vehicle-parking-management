@@ -1,101 +1,129 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+
 import { signIn } from '../store/slices/authSlice'
-import '../styles/LoginPage.css'
+import { Icon, Notice } from '../components/UI'
 
 export default function LoginPage() {
   const dispatch = useDispatch()
   const { loading, error } = useSelector((state) => state.auth)
-
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
+  const [form, setForm] = useState({ username: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-
     if (loading) return
 
-    dispatch(signIn({
-      username: username.trim(),
-      password,
-    }))
+    await dispatch(
+      signIn({
+        username: form.username.trim(),
+        password: form.password,
+      }),
+    )
 
-    setPassword('')
+    setForm((current) => ({ ...current, password: '' }))
     setShowPassword(false)
   }
 
   return (
-    <main className="auth-page">
-      <section className="login-card" aria-labelledby="login-title">
-        <h1 id="login-title">Parkly</h1>
-        
+    <main className="login-page">
+      <section className="login-story">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            P
+          </span>
+          <span>
+            Parkly
+            <small>PARKING MANAGEMENT</small>
+          </span>
+        </div>
 
-        <p className="auth-description">
-          Sign in to your staff account.
-        </p>
+        <div className="login-story-content">
+          <span className="story-tag">
+            ONE WORKSPACE. EVERY PARKING TASK.
+          </span>
+          <h1>
+            A smoother day.
+            <br />
+            <span>A smarter space.</span>
+          </h1>
+          <p>
+            From the first arrival to the last departure,
+            <br />
+            Keep your parking operation moving.
+          </p>
 
-        <form onSubmit={handleSubmit}>
-          <label htmlFor="username">Username</label>
-          <input
-            id="username"
-            name="username"
-            type="text"
-            autoComplete="username"
-            maxLength={100}
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            disabled={loading}
-            required
-          />
+          <div className="parking-art" aria-hidden="true">
+            <span>P</span>
+            <Icon name="vehicle" size={100} />
+            <div className="parking-lines" />
+          </div>
+        </div>
 
-          <label htmlFor="password">Password</label>
+        <small>Built for your daily parking operations.</small>
+      </section>
 
-          <div className="password-field">
+      <section className="login-panel">
+        <form
+          className="login-form"
+          autoComplete="off"
+          onSubmit={handleSubmit}
+        >
+          <span className="login-symbol">
+            <Icon name="shield" size={28} />
+          </span>
+          <p className="eyebrow">WELCOME BACK</p>
+          <h2>Sign in to Parkly</h2>
+          <Notice error={error} />
+
+          <div className="field">
+            <label htmlFor="username">Username</label>
             <input
-              id="password"
-              name="password"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              disabled={loading}
+              id="username"
+              autoComplete="username"
               required
-            />
-
-            <button
-              type="button"
-              className="password-toggle"
-              onClick={() => setShowPassword((current) => !current)}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-              aria-controls="password"
+              maxLength={100}
               disabled={loading}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-                <circle cx="12" cy="12" r="3" />
-                {showPassword && <path d="M3 3 21 21" />}
-              </svg>
-            </button>
+              value={form.username}
+              onChange={(event) =>
+                setForm({ ...form, username: event.target.value })
+              }
+            />
           </div>
 
-          {error && (
-            <p className="login-error" role="alert">
-              {error}
-            </p>
-          )}
+          <div className="field">
+            <label htmlFor="password">Password</label>
+            <div className="password-input">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                required
+                disabled={loading}
+                value={form.password}
+                onChange={(event) =>
+                  setForm({ ...form, password: event.target.value })
+                }
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowPassword((current) => !current)}
+              >
+                <Icon name={showPassword ? 'eyeOff' : 'eye'} />
+              </button>
+            </div>
+          </div>
 
-          <button type="submit" disabled={loading}>
-            {loading ? 'Signing in…' : 'Log in'}
+          <button className="primary login-submit" disabled={loading}>
+            {loading ? 'Signing in…' : 'Sign in'}
+            <Icon name="arrow" size={18} />
           </button>
+
+          <p className="login-help">
+            Need access? Contact your system administrator.
+          </p>
         </form>
       </section>
     </main>

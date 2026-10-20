@@ -1,396 +1,367 @@
-import { useEffect, useState } from 'react'
-import { useDispatch } from 'react-redux'
-import DashboardLayout from '../components/DashboardLayout'
-import { sessionExpired } from '../store/slices/authSlice'
-import {
-  createDailyEntry,
-  createMonthlyEntry,
-  getEntrySpaces,
-  getEntryVehicleTypes,
-} from '../services/VehicleEntryService'
+import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 
-import '../styles/VehicleEntryPage.css'
+import { API } from '../constants/Api'
+import { vehicleTypeField } from '../constants/Resources'
+import { FormFields, Notice, PageHeader } from '../components/UI'
+import useRequest from '../utils/useRequest'
+import { dateTime, rows } from '../utils/format'
 
-const initialForm = {
+const emptyForm = {
+  vehicleID: '',
   vehicleNumber: '',
   vehicleTypeID: '',
-  parkingType: 'DAILY',
+  parkingType: 'D',
   spaceID: '',
   customerName: '',
   mobileNumber: '',
-}
-
-function getErrorMessage(error) {
-  const data = error.response?.data
-
-  if (data?.message) return data.message
-
-  if (data?.errors) {
-    return Object.values(data.errors).flat().join(' ')
-  }
-
-  return (
-    'Could not confirm entry. Check current parking before resubmitting ' +
-    'if the request may have reached the server.'
-  )
+  entryDescription: '',
 }
 
 export default function VehicleEntryPage() {
-  const dispatch = useDispatch()
-
-  const [form, setForm] = useState(initialForm)
-  const [vehicleTypes, setVehicleTypes] = useState([])
-  const [spaces, setSpaces] = useState([])
-  const [typesLoading, setTypesLoading] = useState(true)
-  const [spacesLoading, setSpacesLoading] = useState(false)
-  const [spacesLoaded, setSpacesLoaded] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [form, setForm] = useState(emptyForm)
   const [ticket, setTicket] = useState(null)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [validation, setValidation] = useState('')
+  const [uncertain, setUncertain] = useState(false)
+  const requestId = useRef(null)
+  const isDaily = form.parkingType === 'D'
+
+  // Keep each vehicle type's space list separate.
+  const spaces = useRequest(`entry-spaces:${form.vehicleTypeID}`)
+  const save = useRequest('entry-save')
+  const { load, clear } = spaces
 
   useEffect(() => {
-    const controller = new AbortController()
+    clear()
+    if (!isDaily || !form.vehicleTypeID) return
 
-    async function loadTypes() {
-      try {
-        const data = await getEntryVehicleTypes(controller.signal)
+    const task = load(
+      `${API.entrySpaces}/${encodeURIComponent(form.vehicleTypeID)}`,
+    )
 
-        if (!controller.signal.aborted) {
-          setVehicleTypes(data)
-        }
-      } catch (requestError) {
-        if (controller.signal.aborted) return
+    return () => task.abort()
+  }, [isDaily, form.vehicleTypeID, load, clear])
 
-        if (requestError.response?.status === 401) {
-          dispatch(sessionExpired())
-        } else {
-          setError(getErrorMessage(requestError))
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setTypesLoading(false)
-        }
-      }
-    }
+  const availableSpaces = rows(spaces.data)
 
-    loadTypes()
+  function updateForm(update) {
+    setForm((current) => {
+      const next = typeof update === 'function' ? update(current) : update
+      const selectionChanged =
+        next.vehicleTypeID !== current.vehicleTypeID ||
+        next.parkingType !== current.parkingType
 
-    return () => controller.abort()
-  }, [dispatch])
+      return selectionChanged ? { ...next, spaceID: '' } : next
+    })
 
-  useEffect(() => {
-    const controller = new AbortController()
-
-    if (!form.vehicleTypeID) return () => controller.abort()
-
-    async function loadSpaces() {
-      setSpacesLoading(true)
-      setSpacesLoaded(false)
-      setSpaces([])
-
-      try {
-        const data = await getEntrySpaces(
-          form.vehicleTypeID,
-          controller.signal,
-        )
-
-        if (!controller.signal.aborted) {
-          setSpaces(data)
-          setSpacesLoaded(true)
-        }
-      } catch (requestError) {
-        if (controller.signal.aborted) return
-
-        if (requestError.response?.status === 401) {
-          dispatch(sessionExpired())
-        } else {
-          setError(getErrorMessage(requestError))
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setSpacesLoading(false)
-        }
-      }
-    }
-
-    loadSpaces()
-
-    return () => controller.abort()
-  }, [dispatch, form.vehicleTypeID, refreshKey])
-
-  function changeField(event) {
-    const { name, value } = event.target
-
-    setForm((current) => ({
-      ...current,
-      [name]: value,
-      ...(name === 'vehicleTypeID' ? { spaceID: '' } : {}),
-    }))
-
-    if (name === 'vehicleTypeID') {
-      setSpaces([])
-      setSpacesLoaded(false)
-    }
+    setValidation('')
   }
 
-  function refreshSpaces() {
-    setForm((current) => ({ ...current, spaceID: '' }))
-    setError('')
-    setRefreshKey((current) => current + 1)
-  }
+  const fields = [
+    {
+      name: 'vehicleNumber',
+      label: 'Vehicle number',
+      required: true,
+      uppercase: true,
+      pattern: '[A-Z0-9 -]+',
+      maxLength: 30,
+    },
+    vehicleTypeField,
+    {
+      name: 'parkingType',
+      label: 'Parking type',
+      required: true,
+      options: [
+        { value: 'D', label: 'Daily parking' },
+        { value: 'M', label: 'Monthly parking' },
+      ],
+    },
+    ...(isDaily
+      ? [
+          {
+            name: 'vehicleID',
+            label: 'Vehicle ID for a new vehicle',
+            maxLength: 10,
+            help:
+              'Required by the current procedure for an unregistered vehicle. ' +
+              'Leave blank for an existing vehicle.',
+          },
+          {
+            name: 'spaceID',
+            label: 'Parking space',
+            options: [
+              { value: '', label: 'Automatically allocate' },
+              ...availableSpaces.map((space) => ({
+                value: String(space.spaceID),
+                label: space.spaceCode,
+              })),
+            ],
+          },
+          {
+            name: 'customerName',
+            label: 'Customer name (optional)',
+            maxLength: 200,
+          },
+          {
+            name: 'mobileNumber',
+            label: 'Mobile number (optional)',
+            type: 'tel',
+            minLength: 10,
+            maxLength: 10,
+            pattern: '[0-9]{10}',
+            help: 'If supplied, enter exactly 10 digits.',
+          },
+        ]
+      : []),
+    {
+      name: 'entryDescription',
+      label: 'Entry description (optional)',
+      type: 'textarea',
+      maxLength: 500,
+      wide: true,
+    },
+  ]
 
   async function handleSubmit(event) {
     event.preventDefault()
-    setError('')
+    if (save.loading || uncertain) return
+
+    setValidation('')
     setTicket(null)
 
     const vehicleNumber = form.vehicleNumber.trim().toUpperCase()
-
-    if (!vehicleNumber || !/^[A-Z0-9 -]+$/.test(vehicleNumber)) {
-      setError('Enter a valid vehicle number.')
-      return
-    }
-
-    const vehicleTypeID = Number(form.vehicleTypeID)
-
-    if (!Number.isInteger(vehicleTypeID) || vehicleTypeID <= 0) {
-      setError('Select a vehicle type.')
-      return
-    }
-
-    if (!['DAILY', 'MONTHLY'].includes(form.parkingType)) {
-      setError('Select Daily or Monthly parking.')
-      return
-    }
-
+    const vehicleTypeID = String(form.vehicleTypeID).trim()
+    const vehicleID = form.vehicleID.trim()
     const mobileNumber = form.mobileNumber.trim()
 
-    if (
-      form.parkingType === 'DAILY' &&
-      mobileNumber &&
-      !/^[0-9]{10}$/.test(mobileNumber)
-    ) {
-      setError('Mobile number must contain exactly 10 digits.')
+    if (!vehicleNumber || !/^[A-Z0-9 -]+$/.test(vehicleNumber)) {
+      setValidation('Enter a valid vehicle number.')
       return
     }
 
-    setSaving(true)
+    if (!vehicleTypeID) {
+      setValidation('Select a vehicle type.')
+      return
+    }
+
+    if (!['D', 'M'].includes(form.parkingType)) {
+      setValidation('Select Daily or Monthly parking.')
+      return
+    }
+
+    if (isDaily && mobileNumber && !/^[0-9]{10}$/.test(mobileNumber)) {
+      setValidation('Mobile number must contain exactly 10 digits.')
+      return
+    }
+
+    if (
+      isDaily &&
+      (
+        spaces.loading ||
+        spaces.error ||
+        spaces.data === null ||
+        spaces.data === undefined
+      )
+    ) {
+      setValidation('Load the available spaces before continuing.')
+      return
+    }
+
+    if (isDaily && availableSpaces.length === 0) {
+      setValidation('No compatible daily parking spaces are available.')
+      return
+    }
+
+    if (
+      isDaily &&
+      form.spaceID &&
+      !availableSpaces.some(
+        (space) => String(space.spaceID) === String(form.spaceID),
+      )
+    ) {
+      setValidation('Select a space from the current available list.')
+      return
+    }
+
+    requestId.current ||= crypto.randomUUID()
+
+    const payload = {
+      vehicleNumber,
+      vehicleTypeID,
+      parkingType: form.parkingType,
+      // The backend resolves the reserved space for monthly entry.
+      spaceID: isDaily && form.spaceID ? String(form.spaceID) : null,
+      vehicleID: isDaily && vehicleID ? vehicleID : null,
+      customerName: isDaily ? form.customerName.trim() || null : null,
+      mobileNumber: isDaily ? mobileNumber || null : null,
+      entryDescription: form.entryDescription.trim() || null,
+    }
 
     try {
-      const request = {
-        vehicleNumber,
-        vehicleTypeID,
-        parkingType: form.parkingType,
-        spaceID: form.spaceID ? Number(form.spaceID) : null,
-      }
+      const result = await save.submit(
+        isDaily ? API.dailyEntry : API.monthlyEntry,
+        payload,
+        'post',
+        requestId.current,
+      )
 
-      const result = form.parkingType === 'MONTHLY'
-        ? await createMonthlyEntry(request)
-        : await createDailyEntry({
-            ...request,
-            customerName: form.customerName.trim(),
-            mobileNumber,
-          })
+      setTicket({
+        ...result,
+        vehicleNumber: result?.vehicleNumber || vehicleNumber,
+        parkingType: result?.parkingType || form.parkingType,
+      })
 
-      setTicket(result)
-
-      setForm((current) => ({
-        ...initialForm,
-        vehicleTypeID: current.vehicleTypeID,
-        parkingType: current.parkingType,
-      }))
-
-      setRefreshKey((current) => current + 1)
-    } catch (requestError) {
-      if (requestError.response?.status === 401) {
-        dispatch(sessionExpired())
-      } else {
-        setError(getErrorMessage(requestError))
-
-        if (requestError.response?.status === 409) {
-          setForm((current) => ({ ...current, spaceID: '' }))
-          setRefreshKey((current) => current + 1)
-        }
-      }
-    } finally {
-      setSaving(false)
+      setForm(emptyForm)
+      requestId.current = null
+    } catch {
+      setUncertain(true)
     }
   }
 
-  const canSubmit =
-    !saving &&
-    !typesLoading &&
-    !spacesLoading &&
-    spacesLoaded &&
-    spaces.length > 0
+  function startAgain() {
+    setUncertain(false)
+    setValidation('')
+    save.clear()
+    requestId.current = null
+    setForm(emptyForm)
+  }
+
+  function refreshSpaces() {
+    if (!isDaily || !form.vehicleTypeID || save.loading || uncertain) {
+      return
+    }
+
+    setForm((current) => ({ ...current, spaceID: '' }))
+    load(`${API.entrySpaces}/${encodeURIComponent(form.vehicleTypeID)}`)
+  }
+
+  const dailySpacesUnavailable =
+    isDaily &&
+    (
+      spaces.loading ||
+      Boolean(spaces.error) ||
+      spaces.data === null ||
+      spaces.data === undefined ||
+      availableSpaces.length === 0
+    )
 
   return (
-    <DashboardLayout>
-      <main className="entry-page">
-        <h1>Vehicle entry</h1>
-        <p>Register an arriving vehicle and allocate an available space.</p>
+    <>
+      <PageHeader title="Vehicle entry" />
+      <Notice
+        error={validation || save.error || (isDaily ? spaces.error : '')}
+      />
 
-        {error && (
-          <p className="entry-error" role="alert">
-            {error}
-          </p>
-        )}
-
-        {ticket && (
-          <section className="entry-success" aria-live="polite">
-            <h2>Entry registered</h2>
-            <p><strong>Ticket:</strong> {ticket.ticketNumber}</p>
-            <p><strong>Vehicle:</strong> {ticket.vehicleNumber}</p>
-            <p><strong>Space ID:</strong> {ticket.spaceID}</p>
-            <p>
-              <strong>Entry time:</strong>{' '}
-              {new Date(ticket.entryDateTime).toLocaleString()}
-            </p>
-            <p>
-              <strong>Parking type:</strong> {ticket.parkingType}
-            </p>
-
+      {ticket && (
+        <section className="panel success-panel">
+          <h2>Entry registered</h2>
+          <div className="detail-grid">
+            <div>
+              <span>Ticket number</span>
+              <strong>{ticket.ticketNumber || '—'}</strong>
+            </div>
+            <div>
+              <span>Vehicle</span>
+              <strong>{ticket.vehicleNumber}</strong>
+            </div>
+            <div>
+              <span>Space</span>
+              <strong>{ticket.spaceCode || ticket.spaceID || '—'}</strong>
+            </div>
+            <div>
+              <span>Entry time</span>
+              <strong>{dateTime(ticket.entryDateTime)}</strong>
+            </div>
+            <div>
+              <span>Parking type</span>
+              <strong>
+                {['M', 'MONTHLY'].includes(ticket.parkingType)
+                  ? 'Monthly'
+                  : 'Daily'}
+              </strong>
+            </div>
             {ticket.contractNumber && (
-              <p>
-                <strong>Contract:</strong> {ticket.contractNumber}
-              </p>
+              <div>
+                <span>Contract</span>
+                <strong>{ticket.contractNumber}</strong>
+              </div>
             )}
-          </section>
-        )}
+          </div>
+        </section>
+      )}
 
-        <form className="entry-form" onSubmit={handleSubmit}>
-          <fieldset disabled={saving || typesLoading}>
-            <label>
-              Vehicle number
-              <input
-                name="vehicleNumber"
-                value={form.vehicleNumber}
-                onChange={changeField}
-                maxLength={30}
-                required
-              />
-            </label>
-
-            <label>
-              Vehicle type
-              <select
-                name="vehicleTypeID"
-                value={form.vehicleTypeID}
-                onChange={changeField}
-                required
-              >
-                <option value="">Select vehicle type</option>
-                {vehicleTypes.map((type) => (
-                  <option
-                    key={type.vehicleTypeID}
-                    value={type.vehicleTypeID}
-                  >
-                    {type.typeName}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              Parking type
-              <select
-                name="parkingType"
-                value={form.parkingType}
-                onChange={changeField}
-                required
-              >
-                <option value="DAILY">Daily</option>
-                <option value="MONTHLY">Monthly</option>
-              </select>
-            </label>
-
-            <label>
-              Parking space
-              <select
-                name="spaceID"
-                value={form.spaceID}
-                onChange={changeField}
-                disabled={
-                  !form.vehicleTypeID ||
-                  spacesLoading ||
-                  !spacesLoaded
-                }
-              >
-                <option value="">Automatically allocate a space</option>
-                {spaces.map((space) => (
-                  <option key={space.spaceID} value={space.spaceID}>
-                    {space.spaceCode}
-                    {space.spaceName ? ` — ${space.spaceName}` : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <button
-              type="button"
-              disabled={!form.vehicleTypeID || spacesLoading}
-              onClick={refreshSpaces}
-            >
-              Refresh available spaces
+      {uncertain && (
+        <div className="notice warning">
+          <p>
+            Review the error and check current parking before starting
+            another entry. The request may have reached the server.
+          </p>
+          <div className="actions">
+            <Link className="secondary" to="/current-parking">
+              Check current parking
+            </Link>
+            <button className="secondary" onClick={startAgain}>
+              I checked — start a new entry
             </button>
+          </div>
+        </div>
+      )}
 
-            {spacesLoading && (
-              <p role="status">Loading available spaces…</p>
-            )}
+      <section className="panel">
+        <form onSubmit={handleSubmit}>
+          <FormFields
+            fields={fields}
+            form={form}
+            setForm={updateForm}
+            disabled={save.loading || uncertain}
+            formId="entry"
+          />
 
-            {form.vehicleTypeID &&
-              spacesLoaded &&
-              spaces.length === 0 && (
-                <p role="status">
-                  No available spaces for this vehicle type.
-                </p>
-              )}
+          <div className="info-strip">
+            Entry date and time are recorded by the server.{' '}
+            {isDaily
+              ? 'Daily entry requires configured rates, active parking settings and a compatible space without a conflicting monthly reservation.'
+              : 'Monthly entry requires a registered vehicle, active contract, completed payment covering today and an available reserved space. The backend selects that reserved space.'}
+          </div>
 
-            {form.parkingType === 'DAILY' ? (
-              <>
-                    <label>
-                      Customer name - optional
-                      <input
-                        name="customerName"
-                        value={form.customerName}
-                        onChange={changeField}
-                        maxLength={200}
-                      />
-                    </label>
+          {isDaily && form.vehicleTypeID && (
+            <p className="muted small">
+              {spaces.loading
+                ? 'Checking available spaces…'
+                : spaces.error
+                  ? 'Available spaces could not be loaded.'
+                  : `${availableSpaces.length} available daily spaces for this vehicle type.`}
 
-                    <label>
-                      Mobile number - optional
-                      <input
-                        name="mobileNumber"
-                        type="tel"
-                        value={form.mobileNumber}
-                        onChange={changeField}
-                        maxLength={10}
-                      />
-                    </label>
-                  </>
-                ) : (
-                  <p>
-                    Monthly entry uses the registered vehicle and customer
-                    details from its valid contract.
-                  </p>
-                )}
-
-            <p>
-              Entry date and time are recorded by the server when entry succeeds.
+              <button
+                type="button"
+                className="text-button"
+                disabled={spaces.loading || save.loading || uncertain}
+                onClick={refreshSpaces}
+              >
+                Refresh spaces
+              </button>
             </p>
+          )}
 
-            <button type="submit" disabled={!canSubmit}>
-              {saving
-                ? 'Registering...'
-                : form.parkingType === 'MONTHLY'
-                  ? 'Register monthly entry'
-                  : 'Register daily entry'}
+          <div className="form-actions">
+            <button
+              className="primary"
+              disabled={
+                save.loading ||
+                uncertain ||
+                !form.vehicleTypeID ||
+                dailySpacesUnavailable
+              }
+            >
+              {save.loading
+                ? 'Registering…'
+                : isDaily
+                  ? 'Register daily entry'
+                  : 'Register monthly entry'}
             </button>
-          </fieldset>
+          </div>
         </form>
-      </main>
-    </DashboardLayout>
+      </section>
+    </>
   )
 }

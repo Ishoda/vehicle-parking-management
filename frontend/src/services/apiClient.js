@@ -21,6 +21,12 @@ export function getErrorMessage(error) {
     return data.Message
   }
 
+  const result = data?.result ?? data?.Result
+
+  if (typeof result === 'string' && result.trim()) {
+    return result
+  }
+
   if (error.response?.status === 401) {
     return 'Your session has expired. Please sign in again.'
   }

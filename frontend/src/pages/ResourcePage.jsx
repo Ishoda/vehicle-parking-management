@@ -319,6 +319,128 @@ export default function ResourcePage({
     }
   }
 
+  async function toggleSpaceBlock(row) {
+    if (save.loading) return
+
+    const status = String(row.spaceStatus)
+      .trim()
+      .toUpperCase()
+
+    const blocked = ['B', 'BLOCKED'].includes(status)
+    const available = ['AV', 'AVAILABLE'].includes(status)
+
+    if (!blocked && !available) return
+
+    let reason = null
+
+    if (blocked) {
+      if (!window.confirm(
+        `Unblock space ${row.spaceCode}?`,
+      )) {
+        return
+      }
+    } else {
+      const entered = window.prompt(
+        `Enter a reason for blocking ${row.spaceCode}:`,
+      )
+
+      if (entered === null) return
+
+      reason = entered.trim()
+
+      if (!reason) {
+        window.alert('Enter a block reason.')
+        return
+      }
+    }
+
+    setValidation('')
+    setMessage('')
+    save.clear()
+
+    try {
+      await save.submit(
+        '/ParkingSpace/UpdateParkingSpaceStatus',
+        {
+          p_spaceID: String(row.spaceID),
+          p_spaceStatus: blocked ? 'AV' : 'B',
+          p_blockReason: reason,
+        },
+        'post',
+      )
+
+      setMessage(
+        blocked
+          ? 'Space unblocked successfully.'
+          : 'Space blocked successfully.',
+      )
+
+      refresh()
+    } catch {
+      // The request error appears above the table.
+    }
+  }
+
+  async function changeContractStatus(row) {
+    if (save.loading) return
+
+    const expiring = row.status === 'EXPIRED'
+    let reason = null
+
+    if (expiring) {
+      if (!window.confirm(
+        `Mark ${row.contractNumber} expired and release its reservations?`,
+      )) {
+        return
+      }
+    } else {
+      const entered = window.prompt(
+        `Enter a cancellation reason for ${row.contractNumber}. ` +
+        'Linked reservations will be released; payment history is retained.',
+      )
+
+      if (entered === null) return
+
+      reason = entered.trim()
+
+      if (!reason || reason.length > 500) {
+        window.alert(
+          'Enter a cancellation reason between 1 and 500 characters.',
+        )
+        return
+      }
+    }
+
+    setMessage('')
+    setValidation('')
+    save.clear()
+
+    try {
+      await save.submit(
+        expiring
+          ? '/MonthlyContract/ExpireMonthlyContract'
+          : '/MonthlyContract/CancelMonthlyContract',
+        {
+          p_contractID: String(row.contractID),
+          ...(expiring
+            ? {}
+            : { p_cancelledReason: reason }),
+        },
+        'post',
+      )
+
+      setMessage(
+        expiring
+          ? 'Contract expired successfully.'
+          : 'Contract cancelled. Payment history is retained.',
+      )
+
+      refresh()
+    } catch {
+      // The request error appears above the table.
+    }
+  }
+
   function canModify(row) {
     return !config.canEdit || config.canEdit(row)
   }
@@ -389,6 +511,30 @@ export default function ResourcePage({
         loading={list.loading}
         failed={Boolean(list.error)}
         rowKey={config.id}
+        rowClassName={
+          config.blockable
+            ? (row) => {
+                const status = String(
+                  row.spaceStatus ?? '',
+                ).trim().toUpperCase()
+
+                const colours = {
+                  AV: 'available',
+                  AVAILABLE: 'available',
+                  B: 'blocked',
+                  BLOCKED: 'blocked',
+                  OC: 'occupied',
+                  OCCUPIED: 'occupied',
+                  RE: 'reserved',
+                  RESERVED: 'reserved',
+                }
+
+                return colours[status]
+                  ? `space-row-${colours[status]}`
+                  : undefined
+              }
+            : undefined
+        }
         actions={(row) => (
           <>
             <button
@@ -411,20 +557,77 @@ export default function ResourcePage({
                 disabled={save.loading}
                 onClick={() => reactivate(row)}
               >
-                <RotateCcw size={17} aria-hidden="true" />
+                <RotateCcw
+                  size={17}
+                  aria-hidden="true"
+                />
               </button>
-            ) : (
+            ) : config.allowDelete !== false ? (
               <button
                 type="button"
                 className="icon-button delete-icon"
-                title={`${deactivation ? 'Deactivate' : 'Delete'} ${recordName(row)}`}
-                aria-label={`${deactivation ? 'Deactivate' : 'Delete'} ${recordName(row)}`}
+                title={`${
+                  deactivation ? 'Deactivate' : 'Delete'
+                } ${recordName(row)}`}
+                aria-label={`${
+                  deactivation ? 'Deactivate' : 'Delete'
+                } ${recordName(row)}`}
                 disabled={deleteDisabled(row)}
                 onClick={() => openDelete(row)}
               >
-                <Trash2 size={17} aria-hidden="true" />
+                <Trash2
+                  size={17}
+                  aria-hidden="true"
+                />
               </button>
-            )}
+            ) : null}
+
+                        {config.blockable && (
+              <button
+                type="button"
+                className="small-button"
+                disabled={
+                  save.loading ||
+                  ![
+                    'AV',
+                    'AVAILABLE',
+                    'B',
+                    'BLOCKED',
+                  ].includes(
+                    String(row.spaceStatus)
+                      .trim()
+                      .toUpperCase(),
+                  )
+                }
+                onClick={() => toggleSpaceBlock(row)}
+              >
+                {['B', 'BLOCKED'].includes(
+                  String(row.spaceStatus)
+                    .trim()
+                    .toUpperCase(),
+                )
+                  ? 'Unblock'
+                  : 'Block'}
+              </button>
+            )}            
+            {config.contractActions &&
+              row.storedStatus === 'A' &&
+              ['ACTIVE', 'UPCOMING', 'EXPIRED'].includes(
+                row.status,
+              ) && (
+                <button
+                  type="button"
+                  className="small-button"
+                  disabled={save.loading}
+                  onClick={() =>
+                    changeContractStatus(row)
+                  }
+                >
+                  {row.status === 'EXPIRED'
+                    ? 'Mark expired'
+                    : 'Cancel contract'}
+                </button>
+              )}
 
             {extraAction?.(row)}
           </>

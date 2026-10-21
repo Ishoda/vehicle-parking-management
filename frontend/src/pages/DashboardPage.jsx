@@ -70,7 +70,7 @@ export default function DashboardPage() {
           currency: true,
         },
         {
-          title: 'Monthly revenue',
+          title: "Today's Monthly revenue",
           value: money(data?.monthlyRevenue),
           icon: 'calendar',
           colour: 'black',
@@ -109,7 +109,9 @@ export default function DashboardPage() {
         total: data?.totalSpaces,
         occupied: data?.occupiedSpaces,
         available: data?.availableSpaces,
+        reserved: data?.reservedSpaces,
         blocked: data?.blockedSpaces,
+        other: data?.otherSpaces,
       }
     : data?.counts
 
@@ -160,14 +162,7 @@ export default function DashboardPage() {
             </strong>
           </article>
         ))}
-      </section>
-
-      {isAdmin && data?.monthlyRevenuePeriod && (
-        <p className="dashboard-period">
-          Monthly revenue period: {data.monthlyRevenuePeriod}
-        </p>
-      )}
-
+      </section>      
       <DashboardCharts
         counts={spaceCounts}
         loading={loading}

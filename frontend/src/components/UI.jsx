@@ -107,6 +107,7 @@ export function DataTable({
   failed,
   rowKey,
   actions,
+  rowClassName,
 }) {
   const columnCount = columns.length + (actions ? 1 : 0)
 
@@ -146,7 +147,10 @@ export function DataTable({
             </tr>
           ) : (
             data.map((row, index) => (
-              <tr key={row[rowKey] ?? index}>
+              <tr
+                key={row[rowKey] ?? index}
+                className={rowClassName ? rowClassName(row) : undefined}
+              >
                 {columns.map((column) => (
                   <td key={column.key}>
                     {column.render

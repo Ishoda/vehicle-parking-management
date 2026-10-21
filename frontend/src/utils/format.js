@@ -12,7 +12,11 @@ export function money(value) {
 export function dateTime(value) {
   if (!value) return '—'
 
-  return new Date(value).toLocaleString('en-LK', {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) return '—'
+
+  return date.toLocaleString('en-LK', {
     timeZone: 'Asia/Colombo',
   })
 }

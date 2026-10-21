@@ -88,7 +88,10 @@ export default function VehicleEntryPage() {
           },
           {
             name: 'spaceID',
-            label: 'Parking space',
+            label: 'Parking space (optional)',
+            help:
+              'Leave Automatic allocation selected to let the server choose. ' +
+              'Listed spaces are checked for reservation conflicts when submitting.',
             options: [
               { value: '', label: 'Automatically allocate' },
               ...availableSpaces.map((space) => ({
@@ -327,10 +330,10 @@ export default function VehicleEntryPage() {
           {isDaily && form.vehicleTypeID && (
             <p className="muted small">
               {spaces.loading
-                ? 'Checking available spaces…'
+                ? 'Loading candidate spaces…'
                 : spaces.error
                   ? 'Available spaces could not be loaded.'
-                  : `${availableSpaces.length} available daily spaces for this vehicle type.`}
+                  : `${availableSpaces.length} candidate spaces. Final availability is checked when submitting.`}
 
               <button
                 type="button"

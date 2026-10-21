@@ -1,6 +1,6 @@
-**/.vs/
-**/bin/
-**/obj/
-**/*.csproj.user
-
-/backend/VehicleParking.zip
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.local

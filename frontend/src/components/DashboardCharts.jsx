@@ -50,17 +50,23 @@ function OccupancyChart({ counts, loading, error }) {
   const occupied = validCount(counts?.occupied)
   const available = validCount(counts?.available)
   const blocked = validCount(counts?.blocked)
+  const reserved = validCount(counts?.reserved)
+  const other = validCount(counts?.other)
 
-  const valuesPresent = [total, occupied, available, blocked].every(
-    (value) => value !== null,
-  )
+  const valuesPresent = [
+    total, occupied, available, reserved, blocked, other,
+  ].every((value) => value !== null)
+
   const countsMatch =
-    valuesPresent && occupied + available + blocked === total
+    valuesPresent &&
+    occupied + available + reserved + blocked + other === total
 
   const chartData = [
     { name: 'Occupied', value: occupied, fill: '#c7354b' },
     { name: 'Available', value: available, fill: '#21845b' },
+    { name: 'Reserved', value: reserved, fill: '#397cc4' },
     { name: 'Blocked', value: blocked, fill: '#626873' },
+    { name: 'Other', value: other, fill: '#a5a9b2' },
   ]
 
   const occupancyPercentage =
@@ -99,10 +105,9 @@ function OccupancyChart({ counts, loading, error }) {
           <div
             className="occupancy-chart"
             role="img"
-            aria-label={
-              `${occupied} occupied, ${available} available and ` +
-              `${blocked} blocked spaces`
-            }
+            aria-label={chartData
+              .map((item) => `${item.value} ${item.name.toLowerCase()}`)
+              .join(', ')}
           >
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <PieChart>

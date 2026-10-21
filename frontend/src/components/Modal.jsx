@@ -7,6 +7,7 @@ export default function Modal({
   onClose,
   busy = false,
   small = false,
+  className = '',
 }) {
   const dialogRef = useRef(null)
   const titleId = useId()
@@ -38,7 +39,7 @@ export default function Modal({
   return (
     <dialog
       ref={dialogRef}
-      className={`app-modal ${small ? 'app-modal-small' : ''}`}
+      className={`app-modal ${small ? 'app-modal-small' : ''} ${className}`}
       aria-labelledby={titleId}
       onCancel={handleCancel}
       onClick={handleBackdrop}

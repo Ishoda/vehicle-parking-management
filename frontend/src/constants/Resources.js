@@ -48,6 +48,8 @@ export const RESOURCES = {
     title: 'Parking spaces',
     url: API.spaces,
     id: 'spaceID',
+    allowDelete: false,
+    blockable: true,
     fields: [
       {
         ...text('spaceID', 'Space ID'),
@@ -124,31 +126,96 @@ export const RESOURCES = {
     title: 'Parking rates',
     url: API.rates,
     id: 'rateID',
-    defaults: { rateUnit: 'HOURLY' },
+
+    toggle: true,
+
+    defaults: {
+      rateUnit: 'H',
+    },
+
     fields: [
-      { ...vehicleTypeField, url: API.rateVehicleTypes },
-      text('rateName', 'Rate name'),
+      {
+        ...text('rateID', 'Rate ID'),
+        createOnly: true,
+        maxLength: 10,
+        help: 'Unique internal ID, maximum 10 characters.',
+      },
+
+      {
+        ...vehicleTypeField,
+        url: API.rateVehicleTypes,
+        createOnly: true,
+      },
+
+      {
+        ...text('rateName', 'Rate name'),
+        maxLength: 100,
+      },
+
       amount('rateAmount', 'Amount (LKR)'),
-      choices('rateUnit', 'Rate unit', ['HOURLY', 'DAILY']),
+
+      {
+        name: 'rateUnit',
+        label: 'Rate unit',
+        required: true,
+        createOnly: true,
+
+        options: [
+          { value: 'H', label: 'Hourly' },
+          { value: 'D', label: 'Daily' },
+          { value: 'M', label: 'Monthly' },
+        ],
+      },
+
       {
         name: 'effectiveFrom',
         label: 'Effective from',
         type: 'datetime-local',
         required: true,
       },
+
       {
         name: 'effectiveTo',
         label: 'Effective to',
         type: 'datetime-local',
       },
     ],
+
     columns: [
-      column('vehicleTypeID', 'Vehicle type ID'),
+      column('rateID', 'Rate ID'),
+
+      column(
+        'vehicleTypeName',
+        'Vehicle type',
+      ),
+
       column('rateName', 'Rate'),
-      column('rateUnit', 'Unit'),
+
+      column(
+        'rateUnit',
+        'Unit',
+        (value) =>
+          ({
+            H: 'Hourly',
+            D: 'Daily',
+            M: 'Monthly',
+          })[value] || value,
+      ),
+
       column('rateAmount', 'Amount', money),
-      column('effectiveFrom', 'Effective from', dateTime),
-      column('effectiveTo', 'Effective to', dateTime),
+
+      column(
+        'effectiveFrom',
+        'Effective from',
+        dateTime,
+      ),
+
+      column(
+        'effectiveTo',
+        'Effective to',
+        dateTime,
+      ),
+
       column('activeStatus', 'Status'),
     ],
   },
@@ -157,11 +224,19 @@ export const RESOURCES = {
     title: 'Customers',
     url: API.customers,
     id: 'customerID',
+
+    toggle: true,
+
+    params: {
+      includeInactive: true,
+    },
+
     fields: [
       {
         ...text('customerName', 'Customer name'),
         maxLength: 200,
       },
+
       {
         ...text('mobileNumber', 'Mobile number'),
         type: 'tel',
@@ -170,41 +245,89 @@ export const RESOURCES = {
         pattern: '[0-9]{10}',
         help: 'Enter exactly 10 digits.',
       },
+
       {
         ...text('email', 'Email', false),
         type: 'email',
+        maxLength: 254,
       },
+
       {
         ...text('address', 'Address', false),
         type: 'textarea',
+        maxLength: 500,
         wide: true,
       },
     ],
+
     columns: [
       column('customerName', 'Name'),
       column('mobileNumber', 'Mobile'),
       column('email', 'Email'),
       column('address', 'Address'),
+      column('activeStatus', 'Status'),
     ],
   },
 
   customerVehicles: {
     title: 'Registered vehicles',
-    description: 'Register vehicles against the selected customer.',
+
+    description:
+      'Register vehicles against the selected customer.',
+
     url: API.customerVehicles,
     id: 'customerVehicleID',
+
+    toggle: true,
+
+    params: {
+      includeInactive: true,
+    },
+
     fields: [
+      {
+        ...text(
+          'customerVehicleID',
+          'Vehicle ID',
+        ),
+        createOnly: true,
+        maxLength: 10,
+        help: 'Enter a unique internal vehicle ID.',
+      },
+
       {
         ...text('vehicleNumber', 'Vehicle number'),
         uppercase: true,
         pattern: '[A-Z0-9 -]+',
         maxLength: 30,
       },
+
       vehicleTypeField,
+
+      {
+        ...text('vehicleMake', 'Make', false),
+        maxLength: 50,
+      },
+
+      {
+        ...text('vehicleModel', 'Model', false),
+        maxLength: 50,
+      },
+
+      {
+        ...text('vehicleColour', 'Colour', false),
+        maxLength: 30,
+      },
     ],
+
     columns: [
+      column('customerVehicleID', 'Vehicle ID'),
       column('vehicleNumber', 'Vehicle'),
       column('vehicleTypeName', 'Vehicle type'),
+      column('vehicleMake', 'Make'),
+      column('vehicleModel', 'Model'),
+      column('vehicleColour', 'Colour'),
+      column('activeStatus', 'Status'),
     ],
   },
 
@@ -212,49 +335,62 @@ export const RESOURCES = {
     title: 'Monthly parking',
     url: API.monthlyContracts,
     id: 'contractID',
-    defaults: { status: 'ACTIVE' },
+
+    description:
+      'Create an agreement, then record its monthly payment.',
+
+    allowDelete: false,
+    contractActions: true,
+
+    canEdit: (row) =>
+      ['ACTIVE', 'UPCOMING'].includes(row.status),
+
     fields: [
       {
         name: 'customerID',
         label: 'Customer',
         required: true,
-        // Confirm the customer ID type with the backend.
         numeric: true,
+        createOnly: true,
+
         url: API.customers,
         valueKey: 'customerID',
         labelKey: 'customerName',
       },
+
       {
         name: 'customerVehicleID',
         label: 'Registered vehicle',
         required: true,
+        createOnly: true,
+
         url: API.customerVehicles,
         valueKey: 'customerVehicleID',
         labelKey: 'vehicleLabel',
         dependsOn: 'customerID',
       },
+
       amount('monthlyFee', 'Monthly fee (LKR)'),
-      {
-        ...date('startDate', 'Start date'),
-        get min() {
-          return today()
-        },
-      },
+
+      date('startDate', 'Start date'),
       date('endDate', 'End date'),
-      choices('status', 'Status', ['ACTIVE', 'EXPIRED', 'CANCELLED']),
     ],
+
     columns: [
       column('contractNumber', 'Contract'),
       column('customerName', 'Customer'),
       column('mobileNumber', 'Mobile'),
       column('vehicleNumber', 'Vehicle'),
+
       column('monthlyFee', 'Monthly fee', money),
       column('startDate', 'Start', dateOnly),
       column('endDate', 'End', dateOnly),
+
       column('status', 'Status'),
-      column('paymentStatus', 'Payment'),
+      column('cancelledReason', 'Cancellation reason'),
     ],
   },
+
 
   users: {
     title: 'User management',
